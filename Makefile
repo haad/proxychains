@@ -5,7 +5,7 @@
 # Do not make changes here.
 #
 
-prefix = /home/haad/local
+prefix = /usr/local
 includedir = $(prefix)/include
 libdir = $(prefix)/lib
 
