@@ -5,12 +5,12 @@
 # Do not make changes here.
 #
 
-exec_prefix = /usr/local
-bindir = $(exec_prefix)/bin
-
-prefix = /usr/local/
+prefix = /home/haad/local
 includedir = $(prefix)/include
 libdir = $(prefix)/lib
+
+exec_prefix = $(prefix)
+bindir = $(exec_prefix)/bin
 
 SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
@@ -38,9 +38,9 @@ all: $(ALL_LIBS) $(ALL_TOOLS)
 
 #install: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(DESTDIR)$(LDSO_PATHNAME)
 install: 
-	install -D -m 755 proxychains $(bindir)
-	install -D -m 755 src/proxyresolv $(bindir)
-	install -D -m 644 libproxychains.so $(libdir)
+	install -D -m 755 proxychains $(bindir)/proxychains
+	install -D -m 755 src/proxyresolv $(bindir)/proxyresolv
+	install -D -m 644 libproxychains.so $(libdir)/libproxychains.so
 	install -D -m 644 src/proxychains.conf /etc
 	ln -sf $(libdir)/libproxychains.so $(libdir)/libproxychains.so.3
 
