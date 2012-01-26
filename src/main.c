@@ -18,12 +18,15 @@
 #define _POSIX_C_SOURCE 200809L
 #undef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 700
+
+#include <sys/types.h>
+#include <sys/cdefs.h>
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 extern char *optarg;
@@ -45,6 +48,7 @@ int check_path(char* path) {
 	return access(path, R_OK) != -1;
 }
 
+/* XXX This shouldn't be defined here */
 static const char* dll_name = "libproxychains4.so";
 
 static char own_dir[256];

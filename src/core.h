@@ -112,7 +112,6 @@ int connect_proxy_chain (
 int proxychains_write_log(char *str,...);
 struct hostent* proxy_gethostbyname(const char *name);
 
-
 typedef int (*connect_t)(int, const struct sockaddr *, socklen_t);
 connect_t true_connect;
 

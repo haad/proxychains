@@ -18,20 +18,21 @@
 #undef _GNU_SOURCE
 #define _GNU_SOURCE
 
+#include <sys/types.h>
+#include <sys/cdefs.h>
+
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netdb.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <netdb.h>
+#include <unistd.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <fcntl.h>
-#include <dlfcn.h>
-
 
 #include "core.h"
 #include "common.h"
@@ -45,21 +46,27 @@
 
 int tcp_read_time_out;
 int tcp_connect_time_out;
-chain_type proxychains_ct;
-proxy_data proxychains_pd[MAX_CHAIN];
-unsigned int proxychains_proxy_count = 0;
 int proxychains_got_chain_data = 0;
-unsigned int proxychains_max_chain = 1;
 int proxychains_quiet_mode = 0;
 int proxychains_resolver = 0;
 static int init_l = 0;
+
+unsigned int proxychains_proxy_count = 0;
+unsigned int proxychains_max_chain = 1;
+
 localaddr_arg localnet_addr[MAX_LOCALNET];
+chain_type proxychains_ct;
+proxy_data proxychains_pd[MAX_CHAIN];
+
 size_t num_localnet_addr = 0;
 
 static inline void get_chain_data(proxy_data *pd, unsigned int *proxy_count,
 	chain_type *ct);
 static void init_lib(void);
 
+/*
+ * Initialize libproxychains.
+ */
 static void init_lib(void)
 {
 #ifdef THREAD_SAFE
@@ -76,16 +83,12 @@ static void init_lib(void)
 		fprintf(stderr, "Cannot load symbol 'connect' %s\n", dlerror());
 		exit(1);
 	} else {
-		#ifdef DEBUG
-		PDEBUG( "loaded symbol 'connect'"
-		" real addr %p  wrapped addr %p\n",
-		true_connect, connect);
-		#endif
+		PDEBUG( "loaded symbol 'connect' real addr %p  wrapped addr %p\n",
+			true_connect, connect);
 	}
+
 	if(connect==true_connect) {
-		#ifdef DEBUG
 		PDEBUG("circular reference detected, aborting!\n");
-		#endif
 		abort();
 	}
 	
@@ -97,11 +100,9 @@ static void init_lib(void)
 				dlerror());
 		exit(1);
 	} else {
-		#ifdef DEBUG
 		PDEBUG( "loaded symbol 'gethostbyname'"
-		" real addr %p  wrapped addr %p\n",
-		true_gethostbyname, gethostbyname);
-		#endif
+			" real addr %p  wrapped addr %p\n",
+			true_gethostbyname, gethostbyname);
 	}
 	true_getaddrinfo = (getaddrinfo_t) 
 		dlsym(RTLD_NEXT, "getaddrinfo");
@@ -111,11 +112,9 @@ static void init_lib(void)
 				dlerror());
 		exit(1);
 	} else {
-		#ifdef DEBUG
 		PDEBUG( "loaded symbol 'getaddrinfo'"
 			" real addr %p  wrapped addr %p\n",
 			true_getaddrinfo, getaddrinfo);
-		#endif
 	}
 	true_freeaddrinfo = (freeaddrinfo_t) 
 		dlsym(RTLD_NEXT, "freeaddrinfo");
@@ -125,11 +124,9 @@ static void init_lib(void)
 				dlerror());
 		exit(1);
 	} else {
-		#ifdef DEBUG
 		PDEBUG( "loaded symbol 'freeaddrinfo'"
 			" real addr %p  wrapped addr %p\n",
 			true_freeaddrinfo, freeaddrinfo);
-		#endif
 	}
 	true_gethostbyaddr = (gethostbyaddr_t) 
 		dlsym(RTLD_NEXT, "gethostbyaddr");
@@ -139,11 +136,9 @@ static void init_lib(void)
 				dlerror());
 		exit(1);
 	} else {
-		#ifdef DEBUG
 		PDEBUG( "loaded symbol 'gethostbyaddr'"
 			" real addr %p  wrapped addr %p\n",
 			true_gethostbyaddr, gethostbyaddr);
-		#endif
 	}
 	true_getnameinfo = (getnameinfo_t) 
 		dlsym(RTLD_NEXT, "getnameinfo");
@@ -153,11 +148,9 @@ static void init_lib(void)
 				dlerror());
 		exit(1);
 	} else {
-		#ifdef DEBUG
 		PDEBUG( "loaded symbol 'getnameinfo'"
 			" real addr %p  wrapped addr %p\n",
 			true_getnameinfo, getnameinfo);
-		#endif
 	}
 	init_l = 1;
 }
@@ -254,10 +247,10 @@ static inline void get_chain_data(
 
 					if (sscanf(local_in_addr_port, "%15[^:]:%5s",
 						local_in_addr, local_in_port) < 2) {
-					    PDEBUG("added localnet: netaddr=%s, port=%s\n",
-							local_in_addr, local_netmask);
+							PDEBUG("added localnet: netaddr=%s, port=%s\n",
+								local_in_addr, local_netmask);
 					} else {
-					    PDEBUG("added localnet: netaddr=%s, port=%s, netmask=%s\n",
+						PDEBUG("added localnet: netaddr=%s, port=%s, netmask=%s\n",
 							local_in_addr, local_in_port, local_netmask);
 					}
 					if (num_localnet_addr < MAX_LOCALNET)
@@ -306,7 +299,7 @@ static inline void get_chain_data(
 
 
 
-int connect (int sock, const struct sockaddr *addr, unsigned int len)
+int connect (int sock, const struct sockaddr *addr, socklen_t len)
 {
 	int socktype=0, flags=0, ret=0;
 	socklen_t optlen = 0;
@@ -501,4 +494,3 @@ struct hostent *gethostbyaddr (const void *addr, socklen_t len, int type)
 	}
 	return NULL;
 }
-	

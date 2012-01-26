@@ -16,7 +16,7 @@ SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
 LOBJS = src/core.o src/libproxychains.o
 
-CFLAGS  += -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE
+CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror -Wextra
 LDFLAGS = -shared -fPIC -ldl -lpthread
 INC     = 
 PIC     = -fPIC
@@ -32,7 +32,7 @@ ALL_TOOLS = $(PXCHAINS)
 
 -include config.mak
 
-CFLAGS+=$(USER_CFLAGS)
+CCFLAGS+=$(USER_CFLAGS)
 CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\"
 
 
@@ -50,7 +50,7 @@ clean:
 	rm -f $(OBJS)
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(CFLAGS_MAIN) $(INC) $(PIC) -c -o $@ $<
+	$(CC) $(CCFLAGS) $(CFLAGS_MAIN) $(INC) $(PIC) -c -o $@ $<
 
 $(LDSO_PATHNAME): $(LOBJS)
 	$(CC) $(LDFLAGS) -Wl,-soname=$(LDSO_PATHNAME) -o $@ $(LOBJS)
