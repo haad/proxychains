@@ -53,13 +53,13 @@ static int init_l = 0;
 
 unsigned int proxychains_proxy_count = 0;
 unsigned int proxychains_max_chain = 1;
+unsigned int remote_dns_subnet = 224;
 
 localaddr_arg localnet_addr[MAX_LOCALNET];
 chain_type proxychains_ct;
 proxy_data proxychains_pd[MAX_CHAIN];
 
 size_t num_localnet_addr = 0;
-unsigned int remote_dns_subnet = 224;
 
 static inline void get_chain_data(proxy_data *pd, unsigned int *proxy_count,
 	chain_type *ct);
@@ -68,12 +68,13 @@ static void init_lib(void);
 /*
  * Initialize libproxychains.
  */
-static void init_lib(void)
+static void
+init_lib(void)
 {
-#ifdef THREAD_SAFE
-	pthread_mutex_init(&internal_ips_lock, NULL);
-#endif
-	/* read the config file */
+    /* Initialize mutex for internal ip list */
+    proxychains_mutex_init(&internal_ips_lock);
+
+	/* Read the config file */
 	get_chain_data(proxychains_pd, &proxychains_proxy_count, &proxychains_ct);
 	
 	proxychains_write_log(LOG_PREFIX "DLL init\n");

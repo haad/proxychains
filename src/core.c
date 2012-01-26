@@ -33,10 +33,6 @@
 #include <time.h>
 #include <sys/time.h>
 #include <stdarg.h>
-#ifdef THREAD_SAFE
-#include <pthread.h>
-pthread_mutex_t internal_ips_lock;
-#endif
 
 #include "core.h"
 #include "common.h"
@@ -47,7 +43,6 @@ extern int proxychains_quiet_mode;
 extern unsigned int remote_dns_subnet;
 
 internal_ip_lookup_table internal_ips = {0, 0, NULL};
-
 
 uint32_t dalias_hash(char* s0) {
 	unsigned char* s = (void*) s0;
@@ -69,16 +64,16 @@ uint32_t index_from_internal_ip(ip_type internalip) {
 
 char* string_from_internal_ip(ip_type internalip) {
 	char* res = NULL;
-#ifdef THREAD_SAFE
-	pthread_mutex_lock(&internal_ips_lock);
-#endif
+
+  proxychains_mutex_lock(&internal_ips_lock);
+
 	uint32_t index = index_from_internal_ip(internalip);
 	if(index < internal_ips.counter)
 		res = internal_ips.list[index]->string;
-#ifdef THREAD_SAFE
-	pthread_mutex_unlock(&internal_ips_lock);
-#endif
-	return res;
+
+  proxychains_mutex_unlock(&internal_ips_lock);
+
+  return res;
 }
 
 in_addr_t make_internal_ip(uint32_t index) {
@@ -788,9 +783,7 @@ struct hostent* proxy_gethostbyname(const char *name)
 	
 	hash = dalias_hash((char*) name);
 	
-#ifdef THREAD_SAFE
-	pthread_mutex_lock(&internal_ips_lock);
-#endif
+	proxychains_mutex_lock(&internal_ips_lock);
 	
 	// see if we already have this dns entry saved.
 	if(internal_ips.counter) {
@@ -837,10 +830,7 @@ struct hostent* proxy_gethostbyname(const char *name)
 	
 	have_ip:
 	
-#ifdef THREAD_SAFE
-	pthread_mutex_unlock(&internal_ips_lock);
-#endif
-
+	proxychains_mutex_unlock(&internal_ips_lock);
 	
 	strncpy(addr_name, name, sizeof(addr_name));
 	
@@ -849,9 +839,7 @@ struct hostent* proxy_gethostbyname(const char *name)
 	return &hostent_space;
 
 err_plus_unlock:
-#ifdef THREAD_SAFE
-	pthread_mutex_unlock(&internal_ips_lock);
-#endif
+	proxychains_mutex_unlock(&internal_ips_lock);
 	return NULL;
 }
 int proxy_getaddrinfo(const char *node, const char *service,
