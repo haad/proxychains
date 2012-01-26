@@ -4,9 +4,9 @@
     begin                : Tue May 14 2002
     copyright            :  netcreature (C) 2002
     email                : netcreature@users.sourceforge.net
- ***************************************************************************/
-/*     GPL */
-/***************************************************************************
+ ***************************************************************************
+ *     GPL *
+ ***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -33,38 +33,89 @@
 #include <time.h>
 #include <sys/time.h>
 #include <stdarg.h>
+#ifdef THREAD_SAFE
+#include <pthread.h>
+pthread_mutex_t internal_ips_lock;
+#endif
+
 #include "core.h"
+#include "common.h"
 
 extern int tcp_read_time_out;
 extern int tcp_connect_time_out;
 extern int proxychains_quiet_mode;
 
+internal_ip_lookup_table internal_ips = {0, 0, NULL};
+
+
+uint32_t dalias_hash(char* s0) {
+	unsigned char* s = (void*) s0;
+	uint_fast32_t h = 0;
+	while (*s) {
+		h = 16*h + *s++;
+		h ^= h>>24 & 0xf0;
+	}
+	return h & 0xfffffff;
+}
+
+uint32_t index_from_internal_ip(ip_type internalip) {
+	ip_type tmp = internalip;
+	uint32_t ret;
+	ret = tmp.octet[3] + (tmp.octet[2] << 8) + (tmp.octet[1] << 16);
+	ret -= 1;
+	return ret;
+}
+
+char* string_from_internal_ip(ip_type internalip) {
+	char* res = NULL;
+#ifdef THREAD_SAFE
+	pthread_mutex_lock(&internal_ips_lock);
+#endif
+	uint32_t index = index_from_internal_ip(internalip);
+	if(index < internal_ips.counter)
+		res = internal_ips.list[index]->string;
+#ifdef THREAD_SAFE
+	pthread_mutex_unlock(&internal_ips_lock);
+#endif
+	return res;
+}
+
+in_addr_t make_internal_ip(uint32_t index) {
+	ip_type ret;
+	index++; // so we can start at .0.0.1
+	if(index > 0xFFFFFF) return (in_addr_t) -1;
+	ret.octet[0] = 224;
+	ret.octet[1] = (index & 0xFF0000) >> 16;
+	ret.octet[2] = (index & 0xFF00) >> 8;
+	ret.octet[3] = index & 0xFF;
+	return (in_addr_t) ret.as_int;
+}
+
 static const char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout) 
 {
-  int ret;
-  int time_remain = timeout;
-  int time_elapsed = 0;
+	int ret;
+	int time_remain = timeout;
+	int time_elapsed = 0;
 
-  struct timeval start_time;
-  struct timeval tv;
+	struct timeval start_time;
+	struct timeval tv;
 
-  gettimeofday(&start_time, NULL);
+	gettimeofday(&start_time, NULL);
 
-  do 
-  {
-    //printf("Retry %d\n", time_remain);
-    ret = poll(fds, nfsd, time_remain);
-    gettimeofday(&tv, NULL);
-    time_elapsed =  ((tv.tv_sec - start_time.tv_sec) * 1000 + (tv.tv_usec - start_time.tv_usec) / 1000);
-    //printf("Time elapsed %d\n", time_elapsed);
-    time_remain = timeout - time_elapsed;
-  }
-  while (ret == -1 && errno == EINTR && time_remain > 0);
-  //if (ret == -1)
-  //printf("Return %d %d %s\n", ret, errno, strerror(errno));
-  return ret;
+	do {
+		//printf("Retry %d\n", time_remain);
+		ret = poll(fds, nfsd, time_remain);
+		gettimeofday(&tv, NULL);
+		time_elapsed =  ((tv.tv_sec - start_time.tv_sec) * 1000 + (tv.tv_usec - start_time.tv_usec) / 1000);
+		//printf("Time elapsed %d\n", time_elapsed);
+		time_remain = timeout - time_elapsed;
+	} while (ret == -1 && errno == EINTR && time_remain > 0);
+	
+	//if (ret == -1)
+	//printf("Return %d %d %s\n", ret, errno, strerror(errno));
+	return ret;
 }
 
 
@@ -108,20 +159,18 @@ static void encode_base_64(char* src,char* dest,int max_len)
 
 int proxychains_write_log(char *str,...)
 {
-    char buff[LOG_BUFF];
-    va_list arglist;
-    FILE * log_file;
-    log_file=stderr;
-    if (!proxychains_quiet_mode)
-    {
-        va_start(arglist,str);
-        vsprintf(buff,str,arglist);
-        va_end(arglist);
-        fprintf(log_file,"%s",buff);
-        fflush(log_file);
-    }
-
-        return EXIT_SUCCESS;
+	char buff[LOG_BUFF];
+	va_list arglist;
+	FILE * log_file;
+	log_file=stderr;
+	if (!proxychains_quiet_mode) {
+		va_start(arglist,str);
+		vsprintf(buff,str,arglist);
+		va_end(arglist);
+		fprintf(log_file,"%s",buff);
+		fflush(log_file);
+	}
+	return EXIT_SUCCESS;
 }
 
 static int write_n_bytes(int fd,char *buff,size_t size)
@@ -198,194 +247,244 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len)
 	return ret;
 }
 
-static int tunnel_to(int sock, unsigned int ip, unsigned short port, proxy_type pt,char *user,char *pass)
+
+#define INVALID_INDEX 0xFFFFFFFFU
+static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,char *user,char *pass)
 {
 #ifdef DEBUG
 	PDEBUG("tunnel_to()\n");
 #endif	
+	char* dns_name = NULL;
+	size_t dns_len = 0;
+	
+	// we use ip addresses with 224.* to lookup their dns name in our table, to allow remote DNS resolution
+	// the range 224-255.* is reserved, and it won't go outside (unless the app does some other stuff with
+	// the results returned from gethostbyname et al.)
+	if(ip.octet[0] == 224) {
+		dns_name = string_from_internal_ip(ip);
+		if(!dns_name) goto err;
+		dns_len = strlen(dns_name);
+		if(!dns_len) goto err;
+	}
+	
+	size_t ulen = strlen(user);
+	size_t passlen = strlen(pass);
+	
+	if(ulen > 0xFF || passlen > 0xFF || dns_len > 0xFF) {
+		proxychains_write_log(LOG_PREFIX "error: maximum size of 255 for user/pass or domain name!\n");
+		goto err;
+	}
+	
         int len;
-        char buff[BUFF_SIZE];
-        memset (buff, 0, sizeof(buff));
-        switch(pt)
-        {
-        	case HTTP_TYPE:
-         		{
-             		sprintf(buff,"CONNECT %s:%d HTTP/1.0\r\n",
-			        inet_ntoa( * (struct in_addr *) &ip),
-			        ntohs(port));
-           			if (user[0])
-                		{
-					char src[256];
-     					char dst[512];
-					strcpy(src,user);
-					strcat(src,":");
-					strcat(src,pass);
-					encode_base_64(src,dst,512);
-					strcat(buff,"Proxy-Authorization: Basic ");
-					strcat(buff,dst);
-					strcat(buff,"\r\n\r\n");
-				}
-    				else
-					strcat(buff,"\r\n");
+        unsigned char buff[BUFF_SIZE];
+        //memset (buff, 0, sizeof(buff));
+	
+	switch(pt) {
+		case HTTP_TYPE: {
+			if(!dns_len)
+				dns_name = inet_ntoa( * (struct in_addr *) &ip.as_int);
 			
-           			len=strlen(buff);
-
-			        if(len!=send(sock,buff,len,0))
-			                return SOCKET_ERROR;
+			snprintf((char*)buff, sizeof(buff), "CONNECT %s:%d HTTP/1.0\r\n", dns_name, ntohs(port));
 			
-           			memset(buff, 0, sizeof(buff));
-                        len=0 ;
-      			 // read header byte by byte.
-			       while(len<BUFF_SIZE)
-			       {
-			                if(1==read_n_bytes(sock,buff+len,1))
-			                        len++;
-			                else
-			                        return SOCKET_ERROR;
-			                if (    len > 4     &&
-		                        	buff[len-1]=='\n'  &&
-			                        buff[len-2]=='\r'  &&
-			                        buff[len-3]=='\n'  &&
-			                        buff[len-4]=='\r'  )
-		                        break;
-			       }
-
-			       // if not ok (200) or response greather than BUFF_SIZE return BLOCKED;
-			       if (     (len==BUFF_SIZE)  ||
-			                ! (     buff[9] =='2'         &&
-			                        buff[10]=='0'        &&
-			                        buff[11]=='0'         ))
-                                  return BLOCKED;
-			       return SUCCESS;
-           		}
-            	break;
-            case SOCKS4_TYPE:
-            	{
-               		memset(buff,0,sizeof(buff));
-                 		buff[0]=4; // socks version
-  				buff[1]=1; // connect command
-				memcpy(&buff[2],&port,2); // dest port
-				memcpy(&buff[4],&ip,4); // dest host
-				len=strlen(user)+1; // username
-    				if(len>1)	
-         				strcpy(&buff[8],user);
-				if((len+8)!=write_n_bytes(sock,buff,(8+len)))
-					return SOCKET_ERROR;
-
- 				if(8!=read_n_bytes(sock,buff,8))
-					return SOCKET_ERROR;
-            	
-				if (buff[0]!=0||buff[1]!=90)
-					return BLOCKED;
-     				
-         			return SUCCESS;
-               	}
-                	break;
-            case SOCKS5_TYPE:
-            	{
-               		if(user)
-                 		{
-                 			buff[0]=5;   //version
-					buff[1]=2;	//nomber of methods
-					buff[2]=0;   // no auth method
-	    				buff[3]=2;  /// auth method -> username / password
-                              if(4!=write_n_bytes(sock,buff,4))
-					 	return SOCKET_ERROR;
-       			}
-            		else
-                		{
-            			buff[0]=5;   //version
-					buff[1]=1;	//nomber of methods
-					buff[2]=0;   // no auth method
-                              if(3!=write_n_bytes(sock,buff,3))
-					 	return SOCKET_ERROR;
-       			}
-
-				memset(buff,0,sizeof(buff));
-
-				if(2!=read_n_bytes(sock,buff,2))
-			 		return SOCKET_ERROR;
-			
-      			if (buff[0]!=5||(buff[1]!=0&&buff[1]!=2))
-         			{
-        				if((buff[0]==0x05)&&(buff[1]==(char)0xFF))
-             						return BLOCKED;
-						else
-							return SOCKET_ERROR;
-          			}
-          			
-          			if (buff[1]==2)
-               		{
-					// authentication
-					char in[2];
-     					char out[515]; char* cur=out;
-					int c;
-     					*cur++=1; // version
-					c=strlen(user);
-					*cur++=c;
-					strncpy(cur,user,c);
-					cur+=c;
-					c=strlen(pass);
-					*cur++=c;
-					strncpy(cur,pass,c);
-					cur+=c;
-					
-     					if((cur-out)!=write_n_bytes(sock,out,cur-out))
-					 	return SOCKET_ERROR;
-     					
-          				
-					if(2!=read_n_bytes(sock,in,2))
-			 			return SOCKET_ERROR;
-					if(in[0]!=1||in[1]!=0)
-       				{
-						if(in[0]!=1)
-      						return SOCKET_ERROR;
-						else
-      						return BLOCKED;
-					}
-				}	
-
-     				buff[0]=5;       // version
-				buff[1]=1;       // connect
-				buff[2]=0;       // reserved
-				buff[3]=1;       // ip v4
-
-			 	memcpy(&buff[4],&ip,4); // dest host
-				memcpy(&buff[8],&port,2); // dest port
+			if (user[0])
+			{
+				#define HTTP_AUTH_MAX ((0xFF * 2) + 1 + 1)
+				// 2 * 0xff: username and pass, plus 1 for ':' and 1 for zero terminator.
+				char src[HTTP_AUTH_MAX];
+				char dst[(4 * HTTP_AUTH_MAX)];
 				
-
-			      if(10!=write_n_bytes(sock,buff,10))
-					return SOCKET_ERROR;
+				memcpy(src, user, ulen);
+				memcpy(src + ulen, ":", 1);
+				memcpy(src + ulen + 1, pass, passlen);
+				src[ulen + 1 + passlen] = 0;
+				
+				encode_base_64(src, dst, sizeof(dst));
+				strcat((char*)buff,"Proxy-Authorization: Basic ");
+				strcat((char*)buff, dst);
+				strcat((char*)buff, "\r\n\r\n");
+			}
+			else
+				strcat((char*)buff, "\r\n");
 		
-			      if(4!=read_n_bytes(sock,buff,4))
-					return SOCKET_ERROR;
+			len = strlen((char*)buff);
 
-				if (buff[0]!=5||buff[1]!=0)
-			      	return SOCKET_ERROR;
+			if(len != send(sock, buff, len, 0))
+				goto err;
+		
+			len = 0 ;
+			// read header byte by byte.
+			while(len < BUFF_SIZE) {
+				if(1 == read_n_bytes(sock, (char*) (buff + len), 1))
+					len++;
+				else
+					goto err;
+				if (len > 4 &&
+					buff[len-1]=='\n'  &&
+					buff[len-2]=='\r'  &&
+					buff[len-3]=='\n'  &&
+					buff[len-4]=='\r'  )
+					break;
+			}
 
-			  	switch (buff[3])
-			      {
-					case 1: len=4;  break;
-					case 4: len=16; break;
-					case 3: len=0;
-			  			if(1!=read_n_bytes(sock,(char*)&len,1))
-			 				return SOCKET_ERROR;
-        					break;
-					default:
-						return SOCKET_ERROR;
+			// if not ok (200) or response greather than BUFF_SIZE return BLOCKED;
+			if (len == BUFF_SIZE ||
+				!( buff[9] =='2' &&
+				buff[10]=='0' &&
+				buff[11]=='0' ))
+				return BLOCKED;
+
+			return SUCCESS;
+           	}
+            	break;
+		
+		case SOCKS4_TYPE: {
+                 		buff[0] = 4; // socks version
+  				buff[1] = 1; // connect command
+				memcpy(&buff[2],&port,2); // dest port
+				if(dns_len) {
+					ip.octet[0] = 0;
+					ip.octet[1] = 0;
+					ip.octet[2] = 0;
+					ip.octet[3] = 1;
 				}
+				memcpy(&buff[4], &ip, 4); // dest host
+				len = ulen + 1; // username
+    				if(len > 1)
+         				memcpy(&buff[8], user, len);
+				else {
+					buff[8] = 0;
+				}
+				
+				// do socksv4a dns resolution on the server
+				if(dns_len) {
+					memcpy(&buff[8 + len], dns_name, dns_len + 1);
+					len += dns_len + 1;
+				}
+				
+				if((len + 8) != write_n_bytes(sock, (char*) buff, (8+len)))
+					goto err;
 
-     				if((len+2)!=read_n_bytes(sock,buff,(len+2)))
-					return SOCKET_ERROR;
+ 				if(8 != read_n_bytes(sock, (char*)buff, 8))
+					goto err;
+            	
+				if (buff[0] != 0 || buff[1] != 90)
+					return BLOCKED;
 
 				return SUCCESS;
-                	}
-                	break;	
+		}
+                break;
+		case SOCKS5_TYPE: {
+			if(user) {
+                 		buff[0]=5;   //version
+				buff[1]=2;	//nomber of methods
+				buff[2]=0;   // no auth method
+	    			buff[3]=2;  /// auth method -> username / password
+				if(4!=write_n_bytes(sock, (char*)buff, 4))
+					goto err;
+       			}
+            		else {
+            			buff[0]=5;   //version
+				buff[1]=1;	//nomber of methods
+				buff[2]=0;   // no auth method
+				if(3 != write_n_bytes(sock, (char*) buff, 3))
+					goto err;
+       			}
 
-        }
+			if(2 != read_n_bytes(sock, (char*) buff, 2))
+		 		goto err;
+			
+      			if (buff[0] != 5 || (buff[1] != 0 && buff[1] != 2)) {
+        			if(buff[0] == 5 && buff[1] == 0xFF)
+             				return BLOCKED;
+				else
+					goto err;
+          		}
+          			
+          		if (buff[1] == 2) {
+				// authentication
+				char in[2];
+				char out[515]; char* cur=out;
+				int c;
+				*cur++=1; // version
+				c = ulen & 0xFF;
+				*cur++ = c;
+				memcpy(cur, user, c);
+				cur += c;
+				c = passlen & 0xFF;
+				*cur++ = c;
+				memcpy(cur, pass, c);
+				cur += c;
+				
+				if((cur-out) != write_n_bytes(sock, out, cur-out))
+					goto err;
+				
+				
+				if(2 != read_n_bytes(sock,in,2))
+			 		goto err;
+				if(in[0] != 1 || in[1] != 0) {
+					if(in[0] != 1)
+						goto err;
+					else
+						return BLOCKED;
+					}
+			}
+			int buff_iter = 0;
+			buff[buff_iter++] = 5;       // version
+			buff[buff_iter++] = 1;       // connect
+			buff[buff_iter++] = 0;       // reserved
+			
+			if(!dns_len) {
+				buff[buff_iter++] = 1;       // ip v4
+				memcpy(buff + buff_iter, &ip, 4); // dest host
+				buff_iter += 4;
+			} else {
+				buff[buff_iter++] = 3; //dns
+				buff[buff_iter++] = dns_len & 0xFF;
+				memcpy(buff + buff_iter, dns_name, dns_len);
+				buff_iter += dns_len;
+			}
+			
+			memcpy(buff + buff_iter, &port, 2); // dest port
+			buff_iter += 2;
+			
 
-return SOCKET_ERROR;
+			if(buff_iter != write_n_bytes(sock, (char*)buff, buff_iter))
+				goto err;
+	
+			if(4 != read_n_bytes(sock, (char*)buff, 4))
+				goto err;
+
+			if (buff[0] != 5 || buff[1] != 0)
+				goto err;
+
+			switch (buff[3]) {
+				
+				case 1: len = 4;  break;
+				case 4: len = 16; break;
+				case 3: len = 0;
+					if(1 != read_n_bytes(sock, (char*) &len, 1))
+						goto err;
+					break;
+				default:
+					goto err;
+			}
+
+			if(len + 2 != read_n_bytes(sock, (char*) buff, len+2))
+				goto err;
+
+			return SUCCESS;
+		}
+		break;
+	}
+
+	err:
+	return SOCKET_ERROR;
 }
+
+#define TP " ... "
+#define DT "Dynamic chain"
+#define ST "Strict chain"
+#define RT "Random chain"
 
 static int start_chain(int *fd, proxy_data *pd, char* begin_mark)
 {
@@ -395,14 +494,14 @@ static int start_chain(int *fd, proxy_data *pd, char* begin_mark)
 	if(*fd==-1)
 		goto error;
 	
-	proxychains_write_log("%s-<>-%s:%d-",
+	proxychains_write_log(LOG_PREFIX "%s "TP" %s:%d ",
 				begin_mark,
 				inet_ntoa(*(struct in_addr*)&pd->ip),
 				htons(pd->port));
 	pd->ps=PLAY_STATE;
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = pd->ip;
+	addr.sin_addr.s_addr = (in_addr_t) pd->ip.as_int;
 	addr.sin_port = pd->port;
 	if (timed_connect (*fd ,(struct sockaddr*)&addr,sizeof(addr))) {
 		pd->ps=DOWN_STATE;
@@ -411,7 +510,7 @@ static int start_chain(int *fd, proxy_data *pd, char* begin_mark)
 	pd->ps=BUSY_STATE;
 	return SUCCESS;
 error1:
-	proxychains_write_log("<--timeout\n");
+	proxychains_write_log(TP" timeout\n");
 error:
 	if(*fd!=-1)
 		close(*fd);
@@ -481,12 +580,20 @@ static unsigned int calc_alive(proxy_data *pd, unsigned int proxy_count)
 static int chain_step(int ns, proxy_data *pfrom, proxy_data *pto)
 {
 	int retcode=-1;
+	char* hostname;
 #ifdef DEBUG
 	PDEBUG("chain_step()\n");
 #endif
+	if(pto->ip.octet[0] == 224) {
+		hostname = string_from_internal_ip(pto->ip);
+		if(!hostname) goto usenumericip;
+	} else {
+		usenumericip:
+		hostname = inet_ntoa(*(struct in_addr*)&pto->ip);
+	}
 	
-	proxychains_write_log("<>-%s:%d-", 
-			inet_ntoa(*(struct in_addr*)&pto->ip),
+	proxychains_write_log(TP" %s:%d ",  
+			hostname,
 			htons(pto->port));
 	retcode = 
 		tunnel_to(ns, pto->ip, pto->port, pfrom->pt, pfrom->user, 
@@ -509,7 +616,7 @@ static int chain_step(int ns, proxy_data *pfrom, proxy_data *pto)
 	return retcode;
 }
 
-int connect_proxy_chain( int sock, unsigned int target_ip, 
+int connect_proxy_chain( int sock, ip_type target_ip, 
 		unsigned short target_port, proxy_data *pd, 
 		unsigned int proxy_count, chain_type ct, unsigned int max_chain )
 {
@@ -519,11 +626,6 @@ int connect_proxy_chain( int sock, unsigned int target_ip,
 	unsigned int offset=0;
 	unsigned int alive_count=0;
 	unsigned int curr_len=0;
-
-#define TP "<>"
-#define DT "|D-chain|"
-#define ST "|S-chain|"
-#define RT "|R-chain|"
 	
 	p3=&p4;
 #ifdef DEBUG
@@ -534,8 +636,8 @@ again:
 
 	switch(ct)  {
 		case DYNAMIC_TYPE:
-		alive_count=calc_alive(pd,proxy_count);
-		offset=0;
+		alive_count = calc_alive(pd,proxy_count);
+		offset = 0;
 		do {
 			if(!(p1=select_proxy(FIFOLY,pd,proxy_count,&offset)))
 				goto error_more;
@@ -552,16 +654,16 @@ again:
 			}
 			p1=p2;
 		}
-		proxychains_write_log(TP);
-		p3->ip=target_ip;
-		p3->port=target_port;
-		if(SUCCESS!=chain_step(ns,p1,p3))
+		//proxychains_write_log(TP);
+		p3->ip = target_ip;
+		p3->port = target_port;
+		if(SUCCESS != chain_step(ns, p1, p3))
 			goto error;
 		break;
 
 	case STRICT_TYPE:
-		alive_count=calc_alive(pd, proxy_count);
-		offset=0;
+		alive_count = calc_alive(pd, proxy_count);
+		offset = 0;
 		if(!(p1=select_proxy(FIFOLY, pd, proxy_count, &offset))) {
 			#ifdef DEBUG
 			PDEBUG("select_proxy failed\n");
@@ -583,12 +685,12 @@ again:
 				#endif
 				goto error_strict;
 			}
-			p1=p2;
+			p1 = p2;
 		}
-		proxychains_write_log(TP);
-		p3->ip=target_ip;
-		p3->port=target_port;
-		if(SUCCESS!=chain_step(ns,p1,p3))
+		//proxychains_write_log(TP);
+		p3->ip = target_ip;
+		p3->port = target_port;
+		if(SUCCESS!=chain_step(ns, p1, p3))
 			goto error;
 		break;
 		
@@ -604,23 +706,23 @@ again:
 		while(++curr_len<max_chain) {
 			if(!(p2=select_proxy(RANDOMLY,pd,proxy_count,&offset)))
 				goto error_more;
-			if(SUCCESS!=chain_step(ns,p1,p2)) {
+			if(SUCCESS!=chain_step(ns, p1, p2)) {
 				#ifdef DEBUG
 				PDEBUG("GOTO AGAIN 2\n");
 				#endif
 				goto again;
 			}	
-			p1=p2;
+			p1 = p2;
 		}
-		proxychains_write_log(TP);
-		p3->ip=target_ip;
-		p3->port=target_port;
+		//proxychains_write_log(TP);
+		p3->ip = target_ip;
+		p3->port = target_port;
 		if(SUCCESS!=chain_step(ns,p1,p3))
 			goto error;
 			
 	}
 
-	proxychains_write_log("<><>-OK\n");
+	proxychains_write_log(TP" OK\n");
 	dup2(ns,sock);
 	close(ns);
 	return 0;
@@ -643,76 +745,111 @@ error_strict:
 	return -1;
 }
 
+// TODO: all those buffers aren't threadsafe, but since no memory allocation happens there shouldnt be any segfaults
 static struct hostent hostent_space;
 static in_addr_t resolved_addr;
-static char* resolved_addr_p;
+static char* resolved_addr_p[2];
 static char addr_name[1024*8];
+static const ip_type local_host = {{127, 0, 0, 1}};
 struct hostent* proxy_gethostbyname(const char *name)
 {
-	int pipe_fd[2];
 	char buff[256];
-	in_addr_t addr;
-	pid_t pid;
-	int status;
-	struct hostent* hp;
+	uint32_t i, hash;
+	// yep, new_mem never gets freed. once you passed a fake ip to the client, you can't "retreat" it
+	void* new_mem;
+	size_t l;
 
-	hostent_space.h_addr_list = &resolved_addr_p;
-	*hostent_space.h_addr_list = (char*)&resolved_addr;
+	struct hostent* hp;
+	
+	resolved_addr_p[0] = (char*) &resolved_addr;
+	resolved_addr_p[1] = NULL;
+	
+	hostent_space.h_addr_list = resolved_addr_p;
+
 	resolved_addr = 0;
 	
 	gethostname(buff,sizeof(buff));
-	if(!strcmp(buff,name))
-		goto got_buff;
-
+	
+	if(!strcmp(buff, name)) {
+		resolved_addr = inet_addr(buff);
+		if (resolved_addr == (in_addr_t) (-1))
+			resolved_addr = (in_addr_t) (local_host.as_int);
+		return &hostent_space;
+	}
+	
 	memset(buff, 0, sizeof(buff));
 	
-	// TODO: this works only once, so cache it  ...
-	// 	 later
 	while ((hp=gethostent()))
 		if (!strcmp(hp->h_name,name)) 
 			return hp; 
 	
-	if(pipe(pipe_fd))
-		goto err;
-	pid = fork();
-	switch(pid) {
 	
-		case 0: // child
-			proxychains_write_log("|DNS-request| %s \n", name);
-			dup2(pipe_fd[1],1);
-			//dup2(pipe_fd[1],2);
-		//	putenv("LD_PRELOAD=");
-			execlp("proxyresolv","proxyresolv",name,NULL);
-			perror("can't exec proxyresolv");
-			exit(2);
-
-		case -1: //error
-			close(pipe_fd[0]);
-			close(pipe_fd[1]);
-			perror("can't fork");
-			goto err;
-		
-		default:
-			close(pipe_fd[1]);
-			waitpid(pid, &status, 0);
-			read(pipe_fd[0],&buff,sizeof(buff));
-			close(pipe_fd[0]);
-got_buff:
-			addr = inet_addr(buff);
-			if (addr == (in_addr_t) (-1))
-				goto err_dns;
-			memcpy(*(hostent_space.h_addr_list),
-						&addr ,sizeof(struct in_addr));
-			hostent_space.h_name = addr_name;
-			hostent_space.h_length = sizeof (in_addr_t);
+	hash = dalias_hash((char*) name);
+	
+#ifdef THREAD_SAFE
+	pthread_mutex_lock(&internal_ips_lock);
+#endif
+	
+	// see if we already have this dns entry saved.
+	if(internal_ips.counter) {
+		for( i = 0; i < internal_ips.counter; i++) {
+			if(internal_ips.list[i]->hash == hash && !strcmp(name, internal_ips.list[i]->string)) {
+				resolved_addr = make_internal_ip(i);
+				PDEBUG("got cached ip for %s\n", name);
+				goto have_ip;
+			}
+		}
 	}
-	proxychains_write_log("|DNS-response| %s is %s\n",
-			name, inet_ntoa(*(struct in_addr*)&addr));
+	
+	// grow list if needed.
+	if(internal_ips.capa < internal_ips.counter + 1) {
+		PDEBUG("realloc\n");
+		new_mem = realloc(internal_ips.list, (internal_ips.capa + 16) * sizeof(void*));
+		if(new_mem) {
+			internal_ips.capa += 16;
+			internal_ips.list = new_mem;
+		} else {
+			oom:
+			proxychains_write_log("out of mem\n");
+			goto err_plus_unlock;
+		}
+	}
+	
+	resolved_addr = make_internal_ip(internal_ips.counter);
+	if(resolved_addr == (in_addr_t) -1) goto err_plus_unlock;
+
+	l = strlen(name);
+	new_mem = malloc(sizeof(string_hash_tuple) + l + 1);
+	if(!new_mem) 
+		goto oom;
+	
+	PDEBUG("creating new entry %d for ip of %s\n", (int) internal_ips.counter, name);
+	
+	internal_ips.list[internal_ips.counter] = new_mem;
+	internal_ips.list[internal_ips.counter]->hash = hash;
+	internal_ips.list[internal_ips.counter]->string = (char*) new_mem + sizeof(string_hash_tuple);
+	
+	memcpy(internal_ips.list[internal_ips.counter]->string, name, l + 1);
+	
+	internal_ips.counter += 1;
+	
+	have_ip:
+	
+#ifdef THREAD_SAFE
+	pthread_mutex_unlock(&internal_ips_lock);
+#endif
+
+	
+	strncpy(addr_name, name, sizeof(addr_name));
+	
+	hostent_space.h_name = addr_name;
+	hostent_space.h_length = sizeof (in_addr_t);
 	return &hostent_space;
-err_dns:
-	proxychains_write_log("|DNS-response|: %s does not exist\n", name);
-	perror("err_dns");
-err:
+
+err_plus_unlock:
+#ifdef THREAD_SAFE
+	pthread_mutex_unlock(&internal_ips_lock);
+#endif
 	return NULL;
 }
 int proxy_getaddrinfo(const char *node, const char *service,

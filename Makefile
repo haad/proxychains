@@ -14,23 +14,25 @@ bindir = $(exec_prefix)/bin
 
 SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
-LOBJS = $(OBJS:.o=.lo)
+LOBJS = src/core.o src/libproxychains.o
 
-CFLAGS  += -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe 
-LDFLAGS = -shared -fPIC -ldl
+CFLAGS  += -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE
+LDFLAGS = -shared -fPIC -ldl -lpthread
 INC     = 
-PIC     = -fPIC -O0
+PIC     = -fPIC
 AR      = $(CROSS_COMPILE)ar
 RANLIB  = $(CROSS_COMPILE)ranlib
 
-SHARED_LIBS = libproxychains.so
-ALL_LIBS = $(SHARED_LIBS)
-ALL_TOOLS = proxychains
+LDSO_PATHNAME = libproxychains4.so
 
-LDSO_PATHNAME = libproxychains.so.3
+SHARED_LIBS = $(LDSO_PATHNAME)
+ALL_LIBS = $(SHARED_LIBS)
+PXCHAINS = proxychains4
+ALL_TOOLS = $(PXCHAINS)
 
 -include config.mak
 
+CFLAGS+=$(USER_CFLAGS)
 CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\"
 
 
@@ -38,33 +40,23 @@ all: $(ALL_LIBS) $(ALL_TOOLS)
 
 #install: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(DESTDIR)$(LDSO_PATHNAME)
 install: 
-	install -D -m 755 proxychains $(bindir)/proxychains
-	install -D -m 755 src/proxyresolv $(bindir)/proxyresolv
-	install -D -m 644 libproxychains.so $(libdir)/libproxychains.so
-	install -D -m 644 src/proxychains.conf /etc
-	ln -sf $(libdir)/libproxychains.so $(libdir)/libproxychains.so.3
+	install -D -m 755 $(ALL_TOOLS) $(bindir)/
+	install -D -m 644 $(ALL_LIBS) $(libdir)/
+	install -D -m 644 src/proxychains.conf $(prefix)/etc/
 
 clean:
+	rm -f $(ALL_LIBS)
+	rm -f $(ALL_TOOLS)
 	rm -f $(OBJS)
-	rm -f $(LOBJS)
-	rm -f $(ALL_LIBS) lib/*.[ao] lib/*.so
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(CFLAGS_MAIN) $(INC) -c -o $@ $<
-
-%.lo: %.c
 	$(CC) $(CFLAGS) $(CFLAGS_MAIN) $(INC) $(PIC) -c -o $@ $<
 
-libproxychains.so: $(LOBJS)
-	$(CC) $(LDFLAGS) -Wl,-soname=libproxychains.so -o $@ $(LOBJS) -lgcc
+$(LDSO_PATHNAME): $(LOBJS)
+	$(CC) $(LDFLAGS) -Wl,-soname=$(LDSO_PATHNAME) -o $@ $(LOBJS)
 
 $(ALL_TOOLS): $(OBJS)
-	$(CC) src/main.o -o proxychains
+	$(CC) src/main.o -o $(PXCHAINS)
 
-$(DESTDIR)$(libdir)/%.so: %.so
-	install -D -m 755 $< $@
-
-$(DESTDIR)$(LDSO_PATHNAME): libproxychains.so
-	ln -sf $(libdir)/libproxychains.so $@ || true
 
 .PHONY: all clean install
