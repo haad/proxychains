@@ -38,6 +38,18 @@ typedef struct {
 
 extern internal_ip_lookup_table internal_ips;
 
+#ifdef THREAD_SAFE
+#include <pthread.h>
+pthread_mutex_t internal_ips_lock;
+# define MUTEX_LOCK(x) pthread_mutex_lock(x)
+# define MUTEX_UNLOCK(x) pthread_mutex_unlock(x)
+# define MUTEX_INIT(x,y) pthread_mutex_init(x, y)
+#else
+# define MUTEX_LOCK(x)
+# define MUTEX_UNLOCK(x)
+# define MUTEX_INIT(x,y)
+#endif
+
 /*error codes*/
 typedef enum {
 	SUCCESS=0,
@@ -143,17 +155,4 @@ struct hostent* proxy_gethostbyname(const char *name);
 # define PDEBUG(fmt, args...)
 #endif
 
-#ifdef THREAD_SAFE
-#include <pthread.h>
-pthread_mutex_t internal_ips_lock;
-
-# define proxychains_mutex_lock(mutex) pthread_mutex_lock(mutex)
-# define proxychains_mutex_unlock(mutex) pthread_mutex_unlock(mutex)
-# define proxychains_mutex_init(mutex) pthread_mutex_init(mutex, NULL)
-#else
-# define proxychains_mutex_lock(mutex)
-# define proxychains_mutex_unlock(mutex)
-# define proxychains_mutex_init(mutex)
 #endif
-
-#endif 
