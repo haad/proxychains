@@ -18,6 +18,9 @@
 #undef _GNU_SOURCE
 #define _GNU_SOURCE
 
+#undef _BSD_SOURCE
+#define _BSD_SOURCE
+
 #include <sys/types.h>
 
 #include <dlfcn.h>
@@ -70,14 +73,14 @@ static void init_lib(void);
 static void
 init_lib(void)
 {
-    /* Initialize mutex for internal ip list */
-    proxychains_mutex_init(&internal_ips_lock);
+	/* Initialize mutex for internal ip list */
+	proxychains_mutex_init(&internal_ips_lock);
 
 	/* Read the config file */
 	get_chain_data(proxychains_pd, &proxychains_proxy_count, &proxychains_ct);
-	
+
 	proxychains_write_log(LOG_PREFIX "DLL init\n");
-	
+
 	true_connect = (connect_t) dlsym(RTLD_NEXT, "connect");
 
 	if (!true_connect) {
@@ -92,12 +95,12 @@ init_lib(void)
 		PDEBUG("circular reference detected, aborting!\n");
 		abort();
 	}
-	
-	true_gethostbyname = (gethostbyname_t) 
+
+	true_gethostbyname = (gethostbyname_t)
 		dlsym(RTLD_NEXT, "gethostbyname");
 
 	if (!true_gethostbyname) {
-		fprintf(stderr, "Cannot load symbol 'gethostbyname' %s\n", 
+		fprintf(stderr, "Cannot load symbol 'gethostbyname' %s\n",
 				dlerror());
 		exit(1);
 	} else {
@@ -105,11 +108,11 @@ init_lib(void)
 			" real addr %p  wrapped addr %p\n",
 			true_gethostbyname, gethostbyname);
 	}
-	true_getaddrinfo = (getaddrinfo_t) 
+	true_getaddrinfo = (getaddrinfo_t)
 		dlsym(RTLD_NEXT, "getaddrinfo");
 
 	if (!true_getaddrinfo) {
-		fprintf(stderr, "Cannot load symbol 'getaddrinfo' %s\n", 
+		fprintf(stderr, "Cannot load symbol 'getaddrinfo' %s\n",
 				dlerror());
 		exit(1);
 	} else {
@@ -117,11 +120,11 @@ init_lib(void)
 			" real addr %p  wrapped addr %p\n",
 			true_getaddrinfo, getaddrinfo);
 	}
-	true_freeaddrinfo = (freeaddrinfo_t) 
+	true_freeaddrinfo = (freeaddrinfo_t)
 		dlsym(RTLD_NEXT, "freeaddrinfo");
 
 	if (!true_freeaddrinfo) {
-		fprintf(stderr, "Cannot load symbol 'freeaddrinfo' %s\n", 
+		fprintf(stderr, "Cannot load symbol 'freeaddrinfo' %s\n",
 				dlerror());
 		exit(1);
 	} else {
@@ -129,11 +132,11 @@ init_lib(void)
 			" real addr %p  wrapped addr %p\n",
 			true_freeaddrinfo, freeaddrinfo);
 	}
-	true_gethostbyaddr = (gethostbyaddr_t) 
+	true_gethostbyaddr = (gethostbyaddr_t)
 		dlsym(RTLD_NEXT, "gethostbyaddr");
 
 	if (!true_gethostbyaddr) {
-		fprintf(stderr, "Cannot load symbol 'gethostbyaddr' %s\n", 
+		fprintf(stderr, "Cannot load symbol 'gethostbyaddr' %s\n",
 				dlerror());
 		exit(1);
 	} else {
@@ -141,11 +144,11 @@ init_lib(void)
 			" real addr %p  wrapped addr %p\n",
 			true_gethostbyaddr, gethostbyaddr);
 	}
-	true_getnameinfo = (getnameinfo_t) 
+	true_getnameinfo = (getnameinfo_t)
 		dlsym(RTLD_NEXT, "getnameinfo");
 
 	if (!true_getnameinfo) {
-		fprintf(stderr, "Cannot load symbol 'getnameinfo' %s\n", 
+		fprintf(stderr, "Cannot load symbol 'getnameinfo' %s\n",
 				dlerror());
 		exit(1);
 	} else {
@@ -156,9 +159,7 @@ init_lib(void)
 	init_l = 1;
 }
 
-static inline void get_chain_data(
-			proxy_data *pd,
-			unsigned int *proxy_count,
+static inline void get_chain_data(proxy_data *pd, unsigned int *proxy_count,
 			chain_type *ct)
 {
 	int count=0,port_n=0,list=0;
@@ -192,7 +193,7 @@ static inline void get_chain_data(
 		perror("Can't locate proxychains.conf");
 		exit(1);
 	}
-	
+
 	env = getenv(PROXYCHAINS_QUIET_MODE_ENV_VAR);
 	if(env && *env == '1') proxychains_quiet_mode = 1;
 
@@ -200,25 +201,25 @@ static inline void get_chain_data(
 		if(buff[0] != '\n' && buff[strspn(buff," ")]!='#') {
 			if(list) {
 				memset(&pd[count], 0, sizeof(proxy_data));
-				
+
 				pd[count].ps = PLAY_STATE;
 				port_n = 0;
-				
+
 				sscanf(buff,"%s %s %d %s %s", type, host, &port_n,
 					pd[count].user, pd[count].pass);
-				
+
 				pd[count].ip.as_int = (uint32_t) inet_addr(host);
 				pd[count].port = htons((unsigned short)port_n);
-				
+
 				if(!strcmp(type,"http")) {
 					pd[count].pt = HTTP_TYPE;
 				} else if(!strcmp(type,"socks4")) {
 					pd[count].pt = SOCKS4_TYPE;
 				} else if(!strcmp(type,"socks5")) {
 					pd[count].pt = SOCKS5_TYPE;
-				} else 
+				} else
 					continue;
-				
+
 				if(pd[count].ip.as_int && port_n &&
 				   pd[count].ip.as_int != (uint32_t) -1)
 					if(++count==MAX_CHAIN)
@@ -304,8 +305,6 @@ static inline void get_chain_data(
 	proxychains_got_chain_data = 1;
 }
 
-
-
 int connect (int sock, const struct sockaddr *addr, socklen_t len)
 {
 	int socktype=0, flags=0, ret=0;
@@ -348,9 +347,9 @@ int connect (int sock, const struct sockaddr *addr, socklen_t len)
 	flags = fcntl(sock, F_GETFL, 0);
 	if(flags & O_NONBLOCK)
 	fcntl(sock, F_SETFL, !O_NONBLOCK);
-	
+
 	dest_ip.as_int = SOCKADDR(*addr);
-	
+
 	ret = connect_proxy_chain(
 		sock,
 		dest_ip,
@@ -359,7 +358,7 @@ int connect (int sock, const struct sockaddr *addr, socklen_t len)
 		proxychains_proxy_count,
 		proxychains_ct,
 		proxychains_max_chain );
-	
+
 	fcntl(sock, F_SETFL, flags);
 	if(ret != SUCCESS)
 	errno = ECONNREFUSED;
@@ -370,14 +369,14 @@ struct hostent *gethostbyname(const char *name)
 {
 	if(!init_l)
 		init_lib();
-	
+
 	PDEBUG("gethostbyname: %s\n",name);
-	
+
 	if(proxychains_resolver)
 		return proxy_gethostbyname(name);
 	else
 		return true_gethostbyname(name);
-			
+
 	return NULL;
 }
 
@@ -386,17 +385,17 @@ int getaddrinfo(const char *node, const char *service,
 		struct addrinfo **res)
 {
 	int ret = 0;
-	
+
 	if(!init_l)
 		init_lib();
-	
+
 	PDEBUG("getaddrinfo: %s %s\n",node ,service);
-	
+
 	if(proxychains_resolver)
 		ret = proxy_getaddrinfo(node, service, hints, res);
 	else
 		ret = true_getaddrinfo(node, service, hints, res);
-			
+
 	return ret;
 }
 
@@ -404,9 +403,9 @@ void freeaddrinfo(struct addrinfo *res)
 {
 	if(!init_l)
 		init_lib();
-	
+
 	PDEBUG("freeaddrinfo %p \n",res);
-	
+
 	if(!proxychains_resolver)
 		true_freeaddrinfo(res);
 	else {
@@ -419,9 +418,9 @@ void freeaddrinfo(struct addrinfo *res)
 // 2.14 came out in June 2011 so that should be the first fixed version
 #if defined(__GLIBC__) && (__GLIBC__ < 3) && (__GLIBC_MINOR__ < 14)
 int getnameinfo (const struct sockaddr * sa,
-                        socklen_t salen, char * host,
-                        socklen_t hostlen, char * serv,
-                        socklen_t servlen, unsigned int flags)
+			socklen_t salen, char * host,
+			socklen_t hostlen, char * serv,
+			socklen_t servlen, unsigned int flags)
 #else
 int getnameinfo (const struct sockaddr * sa,
 			socklen_t salen, char * host,
@@ -430,64 +429,47 @@ int getnameinfo (const struct sockaddr * sa,
 #endif
 {
 	int ret = 0;
-	
+
 	if(!init_l)
 		init_lib();
-	
+
 	PDEBUG("getnameinfo: %s %s\n", host, serv);
-	
+
 	if(!proxychains_resolver) {
 		ret = true_getnameinfo(sa,salen,host,hostlen,
 				serv,servlen,flags);
 	} else {
-		if(hostlen) 
+		if(hostlen)
 			strncpy(host, inet_ntoa(SOCKADDR_2(*sa)),hostlen);
-		if(servlen) 
+		if(servlen)
 			snprintf(serv, servlen,"%d",ntohs(SOCKPORT(*sa)));
 	}
 	return ret;
 }
 
-// stolen from libulz (C) rofl0r
-static void pc_stringfromipv4(unsigned char* ip_buf_4_bytes, char* outbuf_16_bytes) {
-        unsigned char* p;
-        char *o = outbuf_16_bytes;
-        unsigned char n;
-        for(p = ip_buf_4_bytes; p < ip_buf_4_bytes + 4; p++) {
-                n = *p;
-                if(*p >= 100) {
-                        if(*p >= 200) *(o++) = '2';
-                        else *(o++) = '1';
-                        n %= 100;
-                }
-                if(*p >= 10) {
-                        *(o++) = (n / 10) + '0';
-                        n %= 10;
-                }
-                *(o++) = n + '0';
-                *(o++) = '.';
-        }
-        o[-1] = 0;
-}
-
+/* XXX Add proper gethostbyaddr hook */
 struct hostent *gethostbyaddr (const void *addr, socklen_t len, int type)
 {
 	static char buf[16];
 	static char ipv4[4];
 	static char* list[2];
 	static struct hostent he;
-	
+	struct in_addr ip;
+
+	memcpy((void *) &ip, addr, sizeof(struct in_addr));
+
 	if(!init_l)
 		init_lib();
-	
+
 	PDEBUG("TODO: proper gethostbyaddr hook\n");
-	
+
 	if(!proxychains_resolver)
 		return true_gethostbyaddr(addr,len,type);
 	else {
-		
+
 		PDEBUG("len %u\n", len);
-		if(len != 4) return NULL;
+		if(len != 4)
+			return NULL;
 		he.h_name = buf;
 		memcpy(ipv4, addr, 4);
 		list[0] = ipv4;
@@ -496,7 +478,7 @@ struct hostent *gethostbyaddr (const void *addr, socklen_t len, int type)
 		he.h_addrtype = AF_INET;
 		he.h_aliases = NULL;
 		he.h_length = 4;
-		pc_stringfromipv4((unsigned char*)addr, buf);
+		snprintf(buf, 16, "%s", inet_ntoa(ip));
 		return &he;
 	}
 	return NULL;

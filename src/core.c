@@ -89,7 +89,7 @@ in_addr_t make_internal_ip(uint32_t index) {
 
 static const char base64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout) 
+static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout)
 {
 	int ret;
 	int time_remain = timeout;
@@ -207,7 +207,7 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len)
 	struct pollfd pfd[1];
 
 	pfd[0].fd=sock;
-	pfd[0].events=POLLOUT;	
+	pfd[0].events=POLLOUT;
 	fcntl(sock, F_SETFL, O_NONBLOCK);
 	ret = true_connect(sock, addr,  len);
 #ifdef DEBUG
@@ -481,11 +481,11 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 static int start_chain(int *fd, proxy_data *pd, char* begin_mark)
 {
 	struct sockaddr_in addr;
-	
+
 	*fd=socket(PF_INET,SOCK_STREAM,0);
 	if(*fd==-1)
 		goto error;
-	
+
 	proxychains_write_log(LOG_PREFIX "%s "TP" %s:%d ",
 				begin_mark,
 				inet_ntoa(*(struct in_addr*)&pd->ip),
@@ -509,7 +509,7 @@ error:
 	return SOCKET_ERROR;
 }
 
-static proxy_data * select_proxy(select_type how, 
+static proxy_data * select_proxy(select_type how,
 		proxy_data *pd, unsigned int proxy_count, unsigned int *offset)
 {
 	unsigned int i=0, k=0;
@@ -583,12 +583,12 @@ static int chain_step(int ns, proxy_data *pfrom, proxy_data *pto)
 		usenumericip:
 		hostname = inet_ntoa(*(struct in_addr*)&pto->ip);
 	}
-	
-	proxychains_write_log(TP" %s:%d ",  
+
+	proxychains_write_log(TP" %s:%d ",
 			hostname,
 			htons(pto->port));
-	retcode = 
-		tunnel_to(ns, pto->ip, pto->port, pfrom->pt, pfrom->user, 
+	retcode =
+		tunnel_to(ns, pto->ip, pto->port, pfrom->pt, pfrom->user,
 				pfrom->pass);
 	switch(retcode) {
 		case SUCCESS:
@@ -608,8 +608,8 @@ static int chain_step(int ns, proxy_data *pfrom, proxy_data *pto)
 	return retcode;
 }
 
-int connect_proxy_chain( int sock, ip_type target_ip, 
-		unsigned short target_port, proxy_data *pd, 
+int connect_proxy_chain( int sock, ip_type target_ip,
+		unsigned short target_port, proxy_data *pd,
 		unsigned int proxy_count, chain_type ct, unsigned int max_chain )
 {
 	proxy_data p4;
@@ -618,10 +618,10 @@ int connect_proxy_chain( int sock, ip_type target_ip,
 	unsigned int offset=0;
 	unsigned int alive_count=0;
 	unsigned int curr_len=0;
-	
+
 	p3=&p4;
 	PDEBUG("connect_proxy_chain\n");
-	
+
 again:
 
 	switch(ct)  {
@@ -675,7 +675,7 @@ again:
 		if(SUCCESS!=chain_step(ns, p1, p3))
 			goto error;
 		break;
-		
+
 	case RANDOM_TYPE:
 		alive_count=calc_alive(pd,proxy_count);
 		if(alive_count<max_chain)
@@ -691,7 +691,7 @@ again:
 			if(SUCCESS!=chain_step(ns, p1, p2)) {
 				PDEBUG("GOTO AGAIN 2\n");
 				goto again;
-			}	
+			}
 			p1 = p2;
 		}
 		//proxychains_write_log(TP);
@@ -699,7 +699,7 @@ again:
 		p3->port = target_port;
 		if(SUCCESS!=chain_step(ns,p1,p3))
 			goto error;
-			
+
 	}
 
 	proxychains_write_log(TP" OK\n");
@@ -711,7 +711,7 @@ error:
 		close(ns);
 	errno = ECONNREFUSED;  // for nmap ;)
 	return -1;
-	
+
 error_more:
 	proxychains_write_log("\n!!!need more proxies!!!\n");
 error_strict:
@@ -738,34 +738,34 @@ struct hostent* proxy_gethostbyname(const char *name)
 	size_t l;
 
 	struct hostent* hp;
-	
+
 	resolved_addr_p[0] = (char*) &resolved_addr;
 	resolved_addr_p[1] = NULL;
-	
+
 	hostent_space.h_addr_list = resolved_addr_p;
 
 	resolved_addr = 0;
-	
+
 	gethostname(buff,sizeof(buff));
-	
+
 	if(!strcmp(buff, name)) {
 		resolved_addr = inet_addr(buff);
 		if (resolved_addr == (in_addr_t) (-1))
 			resolved_addr = (in_addr_t) (local_host.as_int);
 		return &hostent_space;
 	}
-	
+
 	memset(buff, 0, sizeof(buff));
-	
+
 	while ((hp=gethostent()))
-		if (!strcmp(hp->h_name,name)) 
-			return hp; 
-	
-	
+		if (!strcmp(hp->h_name,name))
+			return hp;
+
+
 	hash = dalias_hash((char*) name);
-	
+
 	proxychains_mutex_lock(&internal_ips_lock);
-	
+
 	// see if we already have this dns entry saved.
 	if(internal_ips.counter) {
 		for( i = 0; i < internal_ips.counter; i++) {
@@ -776,7 +776,7 @@ struct hostent* proxy_gethostbyname(const char *name)
 			}
 		}
 	}
-	
+
 	// grow list if needed.
 	if(internal_ips.capa < internal_ips.counter + 1) {
 		PDEBUG("realloc\n");
@@ -790,31 +790,31 @@ struct hostent* proxy_gethostbyname(const char *name)
 			goto err_plus_unlock;
 		}
 	}
-	
+
 	resolved_addr = make_internal_ip(internal_ips.counter);
 	if(resolved_addr == (in_addr_t) -1) goto err_plus_unlock;
 
 	l = strlen(name);
 	new_mem = malloc(sizeof(string_hash_tuple) + l + 1);
-	if(!new_mem) 
+	if(!new_mem)
 		goto oom;
-	
+
 	PDEBUG("creating new entry %d for ip of %s\n", (int) internal_ips.counter, name);
-	
+
 	internal_ips.list[internal_ips.counter] = new_mem;
 	internal_ips.list[internal_ips.counter]->hash = hash;
 	internal_ips.list[internal_ips.counter]->string = (char*) new_mem + sizeof(string_hash_tuple);
-	
+
 	memcpy(internal_ips.list[internal_ips.counter]->string, name, l + 1);
-	
+
 	internal_ips.counter += 1;
-	
+
 	have_ip:
-	
+
 	proxychains_mutex_unlock(&internal_ips_lock);
-	
+
 	strncpy(addr_name, name, sizeof(addr_name));
-	
+
 	hostent_space.h_name = addr_name;
 	hostent_space.h_length = sizeof (in_addr_t);
 	return &hostent_space;
@@ -831,7 +831,7 @@ int proxy_getaddrinfo(const char *node, const char *service,
 	struct hostent *hp = NULL;
 	struct sockaddr* sockaddr_space = NULL;
 	struct addrinfo*  addrinfo_space = NULL;
-	
+
 //	printf("proxy_getaddrinfo node %s service %s\n",node,service);
 	addrinfo_space = malloc(sizeof(struct addrinfo));
 	if(!addrinfo_space)
@@ -844,7 +844,7 @@ int proxy_getaddrinfo(const char *node, const char *service,
 	if (node &&
 	    !inet_aton(node,&((struct sockaddr_in*)sockaddr_space)->sin_addr)) {
 		hp = proxy_gethostbyname(node);
-		if (hp) 
+		if (hp)
 			memcpy(&((struct sockaddr_in*)sockaddr_space)->sin_addr,
 				*(hp->h_addr_list),
 				sizeof(in_addr_t));
@@ -853,11 +853,11 @@ int proxy_getaddrinfo(const char *node, const char *service,
 	}
 	if (service)
 		se = getservbyname(service, NULL);
-	
+
 	if (!se) {
-		((struct sockaddr_in*)sockaddr_space)->sin_port = 
+		((struct sockaddr_in*)sockaddr_space)->sin_port =
 			htons(atoi(service?:"0"));
-	} else 
+	} else
 		((struct sockaddr_in*)sockaddr_space)->sin_port = se->s_port;
 
 	*res = addrinfo_space;
