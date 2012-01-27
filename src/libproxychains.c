@@ -18,9 +18,6 @@
 #undef _GNU_SOURCE
 #define _GNU_SOURCE
 
-#undef _BSD_SOURCE
-#define _BSD_SOURCE
-
 #include <sys/types.h>
 
 #include <dlfcn.h>
@@ -456,9 +453,6 @@ struct hostent *gethostbyaddr (const void *addr, socklen_t len, int type)
 	static char ipv4[4];
 	static char* list[2];
 	static struct hostent he;
-	struct in_addr ip;
-
-	memcpy((void *) &ip, addr, sizeof(struct in_addr));
 
 	if(!init_l)
 		init_lib();
@@ -480,7 +474,7 @@ struct hostent *gethostbyaddr (const void *addr, socklen_t len, int type)
 		he.h_addrtype = AF_INET;
 		he.h_aliases = NULL;
 		he.h_length = 4;
-		snprintf(buf, 16, "%s", inet_ntoa(ip));
+		inet_ntop(AF_INET, addr, buf, sizeof(buf));
 		return &he;
 	}
 	return NULL;
