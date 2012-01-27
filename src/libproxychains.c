@@ -409,8 +409,10 @@ void freeaddrinfo(struct addrinfo *res)
 	if(!proxychains_resolver)
 		true_freeaddrinfo(res);
 	else {
-		free(res->ai_addr);
-		free(res);
+		if (res != NULL) {
+			free(res->ai_addr);
+			free(res);
+		}
 	}
 	return;
 }
