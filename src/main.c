@@ -20,15 +20,21 @@
 #define _XOPEN_SOURCE 700
 
 #include <sys/types.h>
+#include <sys/param.h>
 
+#include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <unistd.h>
+
 #include <sys/wait.h>
 
 #include "common.h"
+
+#ifndef INSTALL_PREFIX
+#define INSTALL_PREFIX "/usr/local"
+#endif
 
 static int usage(char** argv) {
 	printf( "\nUsage:\t%s -q -f config_file program_name [arguments]\n"
@@ -72,8 +78,8 @@ static void set_own_dir(const char* argv0) {
 
 int main(int argc, char *argv[]) {
 	char *path = NULL;
-	char buf[256];
-	char pbuf[256];
+	char buf[PATH_MAX];
+	char pbuf[PATH_MAX];
 	int start_argv = 1;
 	int quiet = 0;
 	size_t i;
@@ -85,15 +91,15 @@ int main(int argc, char *argv[]) {
 				quiet = 1;
 				start_argv++;
 			} else if(argv[start_argv][1] == 'f') {
-				
-				if(start_argv + 1 < argc) 
+
+				if(start_argv + 1 < argc)
 					path = argv[start_argv + 1];
-				else 
+				else
 					return usage(argv);
 
 				start_argv += 2;
 			}
-		} else 
+		} else
 			break;
 	}
 
@@ -111,16 +117,23 @@ int main(int argc, char *argv[]) {
 		path = pbuf;
 		if(check_path(path)) goto have;
 
-		// priority 3; $HOME/.proxychains/proxychains.conf
+		// priority 3; $HOME/.proxychains/PROXYCHAINS_CONF_FILE
 		path = getenv("HOME");
 		snprintf(pbuf, sizeof(pbuf), "%s/.proxychains/%s", path, PROXYCHAINS_CONF_FILE);
 		path = pbuf;
 		if(check_path(path)) goto have;
 
-		// priority 4: /etc/proxychains.conf
+		/* priority 4: $INSTALL_PREFIX/etc/proxychains.conf */
+		snprintf(pbuf, sizeof(pbuf), "%s/etc/proxychains.conf", INSTALL_PREFIX);
+		path = pbuf;
+		if(check_path(path)) goto have;
+		perror("Couldn't find configuration file");
+		return 1;
+
+		// priority 5: /etc/proxychains.conf
 		path = "/etc/proxychains.conf";
 		if(check_path(path)) goto have;
-		perror("couldnt find configuration file");
+		perror("Couldn't find configuration file");
 		return 1;
 	}
 
@@ -130,12 +143,11 @@ int main(int argc, char *argv[]) {
 
 	/* Set PROXYCHAINS_CONF_FILE to get proxychains lib to use new config file. */
 	setenv(PROXYCHAINS_CONF_FILE_ENV_VAR, path, 1);
-	
+
 	if(quiet) setenv(PROXYCHAINS_QUIET_MODE_ENV_VAR, "1", 1);
 
 
 	// search DLL
-
 	set_own_dir(argv[0]);
 
 	while(dll_dirs[i]) {

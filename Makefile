@@ -8,6 +8,7 @@
 prefix = /usr/local
 includedir = $(prefix)/include
 libdir = $(prefix)/lib
+confdir = $(prefix)/etc
 
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
@@ -16,7 +17,7 @@ SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
 LOBJS = src/core.o src/libproxychains.o
 
-CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -D_BSD_SOURCE -pipe -DTHREAD_SAFE -Werror
+CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -D_BSD_SOURCE -pipe -DTHREAD_SAFE -Werror 
 LDFLAGS = -shared -fPIC -ldl -lpthread
 INC     = 
 PIC     = -fPIC
@@ -33,7 +34,7 @@ ALL_TOOLS = $(PXCHAINS)
 -include config.mak
 
 CCFLAGS+=$(USER_CFLAGS)
-CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\"
+CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\"  -DINSTALL_PREFIX=\"$(prefix)\"
 
 
 all: $(ALL_LIBS) $(ALL_TOOLS)
@@ -42,7 +43,7 @@ all: $(ALL_LIBS) $(ALL_TOOLS)
 install: 
 	install -D -m 755 $(ALL_TOOLS) $(bindir)/
 	install -D -m 644 $(ALL_LIBS) $(libdir)/
-	install -D -m 644 src/proxychains.conf $(prefix)/etc/
+	install -D -m 644 src/proxychains.conf $(confdir)
 
 clean:
 	rm -f $(ALL_LIBS)
