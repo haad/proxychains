@@ -14,6 +14,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+#include <sys/types.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -25,7 +26,6 @@
 #include <sys/utsname.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <sys/wait.h>
@@ -65,15 +65,15 @@ uint32_t index_from_internal_ip(ip_type internalip) {
 char* string_from_internal_ip(ip_type internalip) {
 	char* res = NULL;
 
-  proxychains_mutex_lock(&internal_ips_lock);
+	proxychains_mutex_lock(&internal_ips_lock);
 
 	uint32_t index = index_from_internal_ip(internalip);
 	if(index < internal_ips.counter)
 		res = internal_ips.list[index]->string;
 
-  proxychains_mutex_unlock(&internal_ips_lock);
+	proxychains_mutex_unlock(&internal_ips_lock);
 
-  return res;
+	return res;
 }
 
 in_addr_t make_internal_ip(uint32_t index) {
@@ -108,7 +108,7 @@ static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout)
 		//printf("Time elapsed %d\n", time_elapsed);
 		time_remain = timeout - time_elapsed;
 	} while (ret == -1 && errno == EINTR && time_remain > 0);
-	
+
 	//if (ret == -1)
 	//printf("Return %d %d %s\n", ret, errno, strerror(errno));
 	return ret;
@@ -118,7 +118,7 @@ static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout)
 static void encode_base_64(char* src,char* dest,int max_len)
 {
 	int n,l,i;
- 	l=strlen(src);
+	l=strlen(src);
 	max_len=(max_len-1)/4;
 	for ( i=0;i<max_len;i++,src+=3,l-=3)
 	{
@@ -191,7 +191,7 @@ static int read_n_bytes(int fd,char *buff, size_t size)
 
 	pfd[0].fd=fd;
 	pfd[0].events=POLLIN;
-	for(i=0; i < size; i++) {  
+	for(i=0; i < size; i++) {
 		pfd[0].revents = 0;
 		ready = poll_retry(pfd, 1, tcp_read_time_out);
 		if(ready != 1 || !(pfd[0].revents&POLLIN) || 1 != read(fd,&buff[i],1))
@@ -204,40 +204,37 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len)
 {
 	int ret, value;
 	socklen_t value_len;
- 	struct pollfd pfd[1];
+	struct pollfd pfd[1];
 
 	pfd[0].fd=sock;
 	pfd[0].events=POLLOUT;	
 	fcntl(sock, F_SETFL, O_NONBLOCK);
-  	ret = true_connect(sock, addr,  len);
+	ret = true_connect(sock, addr,  len);
 #ifdef DEBUG
 	if(ret == -1) perror("true_connect");
 	printf("\nconnect ret=%d\n",ret);
-	
+
 	fflush(stdout);
 #endif
-  	if(ret==-1 && errno==EINPROGRESS) {
+	if(ret==-1 && errno==EINPROGRESS) {
 		ret=poll_retry(pfd,1,tcp_connect_time_out);
-#ifdef DEBUG
-		printf("\npoll ret=%d\n",ret);fflush(stdout);
-#endif
-	      	if(ret == 1) {
+
+		PDEBUG("\npoll ret=%d\n",ret);fflush(stdout);
+		if(ret == 1) {
 			value_len=sizeof(socklen_t);
 			getsockopt(sock,SOL_SOCKET,SO_ERROR,&value,&value_len) ;
-#ifdef DEBUG
-			printf("\nvalue=%d\n",value);fflush(stdout);
-#endif
-        	       	if(!value)
+			PDEBUG("\nvalue=%d\n",value);fflush(stdout);
+			if(!value)
 				ret=0;
 			else
 				ret=-1;
 		} else {
-        		      	ret=-1;
+			ret=-1;
 		}
 	} else {
 		if (ret != 0)
 			ret=-1;
-	} 	
+	}
 
 	fcntl(sock, F_SETFL, !O_NONBLOCK);
 	return ret;
@@ -245,14 +242,17 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len)
 
 
 #define INVALID_INDEX 0xFFFFFFFFU
+#define HTTP_AUTH_MAX ((0xFF * 2) + 1 + 1)
+
 static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,char *user,char *pass)
 {
-#ifdef DEBUG
-	PDEBUG("tunnel_to()\n");
-#endif	
+	int len;
+	unsigned char buff[BUFF_SIZE];
 	char* dns_name = NULL;
 	size_t dns_len = 0;
-	
+
+	PDEBUG("tunnel_to()\n");
+
 	// we use ip addresses with 224.* to lookup their dns name in our table, to allow remote DNS resolution
 	// the range 224-255.* is reserved, and it won't go outside (unless the app does some other stuff with
 	// the results returned from gethostbyname et al.)
@@ -263,38 +263,35 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 		dns_len = strlen(dns_name);
 		if(!dns_len) goto err;
 	}
-	
+
 	size_t ulen = strlen(user);
 	size_t passlen = strlen(pass);
-	
+
 	if(ulen > 0xFF || passlen > 0xFF || dns_len > 0xFF) {
 		proxychains_write_log(LOG_PREFIX "error: maximum size of 255 for user/pass or domain name!\n");
 		goto err;
 	}
-	
-        int len;
-        unsigned char buff[BUFF_SIZE];
-        //memset (buff, 0, sizeof(buff));
-	
+
+	//memset (buff, 0, sizeof(buff));
+
 	switch(pt) {
 		case HTTP_TYPE: {
 			if(!dns_len)
 				dns_name = inet_ntoa( * (struct in_addr *) &ip.as_int);
-			
+
 			snprintf((char*)buff, sizeof(buff), "CONNECT %s:%d HTTP/1.0\r\n", dns_name, ntohs(port));
-			
+
 			if (user[0])
 			{
-				#define HTTP_AUTH_MAX ((0xFF * 2) + 1 + 1)
 				// 2 * 0xff: username and pass, plus 1 for ':' and 1 for zero terminator.
 				char src[HTTP_AUTH_MAX];
 				char dst[(4 * HTTP_AUTH_MAX)];
-				
+
 				memcpy(src, user, ulen);
 				memcpy(src + ulen, ":", 1);
 				memcpy(src + ulen + 1, pass, passlen);
 				src[ulen + 1 + passlen] = 0;
-				
+
 				encode_base_64(src, dst, sizeof(dst));
 				strcat((char*)buff,"Proxy-Authorization: Basic ");
 				strcat((char*)buff, dst);
@@ -302,12 +299,12 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 			}
 			else
 				strcat((char*)buff, "\r\n");
-		
+
 			len = strlen((char*)buff);
 
 			if(len != send(sock, buff, len, 0))
 				goto err;
-		
+
 			len = 0 ;
 			// read header byte by byte.
 			while(len < BUFF_SIZE) {
@@ -331,77 +328,78 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 				return BLOCKED;
 
 			return SUCCESS;
-           	}
-            	break;
-		
+		}
+		break;
+
 		case SOCKS4_TYPE: {
-                 		buff[0] = 4; // socks version
-  				buff[1] = 1; // connect command
-				memcpy(&buff[2],&port,2); // dest port
-				if(dns_len) {
-					ip.octet[0] = 0;
-					ip.octet[1] = 0;
-					ip.octet[2] = 0;
-					ip.octet[3] = 1;
-				}
-				memcpy(&buff[4], &ip, 4); // dest host
-				len = ulen + 1; // username
-    				if(len > 1)
-         				memcpy(&buff[8], user, len);
-				else {
-					buff[8] = 0;
-				}
-				
-				// do socksv4a dns resolution on the server
-				if(dns_len) {
-					memcpy(&buff[8 + len], dns_name, dns_len + 1);
-					len += dns_len + 1;
-				}
-				
-				if((len + 8) != write_n_bytes(sock, (char*) buff, (8+len)))
+			buff[0] = 4; // socks version
+			buff[1] = 1; // connect command
+			memcpy(&buff[2],&port,2); // dest port
+			if(dns_len) {
+				ip.octet[0] = 0;
+				ip.octet[1] = 0;
+				ip.octet[2] = 0;
+				ip.octet[3] = 1;
+			}
+
+			memcpy(&buff[4], &ip, 4); // dest host
+			len = ulen + 1; // username
+			if(len > 1)
+				memcpy(&buff[8], user, len);
+			else {
+				buff[8] = 0;
+			}
+
+			// do socksv4a dns resolution on the server
+			if(dns_len) {
+				memcpy(&buff[8 + len], dns_name, dns_len + 1);
+				len += dns_len + 1;
+			}
+
+			if((len + 8) != write_n_bytes(sock, (char*) buff, (8+len)))
+				goto err;
+
+				if(8 != read_n_bytes(sock, (char*)buff, 8))
 					goto err;
 
- 				if(8 != read_n_bytes(sock, (char*)buff, 8))
-					goto err;
-            	
 				if (buff[0] != 0 || buff[1] != 90)
 					return BLOCKED;
 
 				return SUCCESS;
 		}
-                break;
+		break;
 		case SOCKS5_TYPE: {
 			if(user) {
-                 		buff[0]=5;   //version
+				buff[0]=5;   //version
 				buff[1]=2;	//nomber of methods
 				buff[2]=0;   // no auth method
-	    			buff[3]=2;  /// auth method -> username / password
+				buff[3]=2;  // auth method -> username / password
 				if(4!=write_n_bytes(sock, (char*)buff, 4))
 					goto err;
-       			}
-            		else {
-            			buff[0]=5;   //version
+			} else {
+				buff[0]=5;   //version
 				buff[1]=1;	//nomber of methods
 				buff[2]=0;   // no auth method
 				if(3 != write_n_bytes(sock, (char*) buff, 3))
 					goto err;
-       			}
+			}
 
 			if(2 != read_n_bytes(sock, (char*) buff, 2))
-		 		goto err;
-			
-      			if (buff[0] != 5 || (buff[1] != 0 && buff[1] != 2)) {
-        			if(buff[0] == 5 && buff[1] == 0xFF)
-             				return BLOCKED;
+				goto err;
+
+			if (buff[0] != 5 || (buff[1] != 0 && buff[1] != 2)) {
+				if(buff[0] == 5 && buff[1] == 0xFF)
+					return BLOCKED;
 				else
 					goto err;
-          		}
-          			
-          		if (buff[1] == 2) {
+			}
+
+			if (buff[1] == 2) {
 				// authentication
 				char in[2];
 				char out[515]; char* cur=out;
 				int c;
+
 				*cur++=1; // version
 				c = ulen & 0xFF;
 				*cur++ = c;
@@ -411,11 +409,10 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 				*cur++ = c;
 				memcpy(cur, pass, c);
 				cur += c;
-				
+
 				if((cur-out) != write_n_bytes(sock, out, cur-out))
 					goto err;
-				
-				
+
 				if(2 != read_n_bytes(sock,in,2))
 			 		goto err;
 				if(in[0] != 1 || in[1] != 0) {
@@ -429,7 +426,7 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 			buff[buff_iter++] = 5;       // version
 			buff[buff_iter++] = 1;       // connect
 			buff[buff_iter++] = 0;       // reserved
-			
+
 			if(!dns_len) {
 				buff[buff_iter++] = 1;       // ip v4
 				memcpy(buff + buff_iter, &ip, 4); // dest host
@@ -440,14 +437,13 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 				memcpy(buff + buff_iter, dns_name, dns_len);
 				buff_iter += dns_len;
 			}
-			
+
 			memcpy(buff + buff_iter, &port, 2); // dest port
 			buff_iter += 2;
-			
 
 			if(buff_iter != write_n_bytes(sock, (char*)buff, buff_iter))
 				goto err;
-	
+
 			if(4 != read_n_bytes(sock, (char*)buff, 4))
 				goto err;
 
@@ -455,7 +451,6 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt,ch
 				goto err;
 
 			switch (buff[3]) {
-				
 				case 1: len = 4;  break;
 				case 4: len = 16; break;
 				case 3: len = 0;
@@ -578,9 +573,9 @@ static int chain_step(int ns, proxy_data *pfrom, proxy_data *pto)
 {
 	int retcode=-1;
 	char* hostname;
-#ifdef DEBUG
+
 	PDEBUG("chain_step()\n");
-#endif
+
 	if(pto->ip.octet[0] == remote_dns_subnet) {
 		hostname = string_from_internal_ip(pto->ip);
 		if(!hostname) goto usenumericip;
@@ -625,9 +620,7 @@ int connect_proxy_chain( int sock, ip_type target_ip,
 	unsigned int curr_len=0;
 	
 	p3=&p4;
-#ifdef DEBUG
 	PDEBUG("connect_proxy_chain\n");
-#endif
 	
 again:
 
@@ -644,9 +637,7 @@ again:
 			if(!p2)
 				break;
 			if(SUCCESS!=chain_step(ns,p1,p2)) {
-				#ifdef DEBUG
 				PDEBUG("GOTO AGAIN 1\n");
-				#endif
 				goto again;
 			}
 			p1=p2;
@@ -662,24 +653,18 @@ again:
 		alive_count = calc_alive(pd, proxy_count);
 		offset = 0;
 		if(!(p1=select_proxy(FIFOLY, pd, proxy_count, &offset))) {
-			#ifdef DEBUG
 			PDEBUG("select_proxy failed\n");
-			#endif
 			goto error_strict;
 		}
 		if(SUCCESS!=start_chain(&ns, p1, ST)) {
-			#ifdef DEBUG
 			PDEBUG("start_chain failed\n");
-			#endif
 			goto error_strict;
 		}
 		while(offset < proxy_count) {
 			if(!(p2 = select_proxy(FIFOLY, pd, proxy_count, &offset)))
 				break;
 			if(SUCCESS!=chain_step(ns, p1, p2)) {
-				#ifdef DEBUG
 				PDEBUG("chain_step failed\n");
-				#endif
 				goto error_strict;
 			}
 			p1 = p2;
@@ -704,9 +689,7 @@ again:
 			if(!(p2=select_proxy(RANDOMLY,pd,proxy_count,&offset)))
 				goto error_more;
 			if(SUCCESS!=chain_step(ns, p1, p2)) {
-				#ifdef DEBUG
 				PDEBUG("GOTO AGAIN 2\n");
-				#endif
 				goto again;
 			}	
 			p1 = p2;
@@ -732,9 +715,7 @@ error:
 error_more:
 	proxychains_write_log("\n!!!need more proxies!!!\n");
 error_strict:
-	#ifdef DEBUG
 	PDEBUG("error\n");
-	#endif
 	release_all(pd,proxy_count);
 	if(ns!=-1)
 		close(ns);

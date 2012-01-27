@@ -20,7 +20,6 @@
 #define _XOPEN_SOURCE 700
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -79,7 +78,7 @@ int main(int argc, char *argv[]) {
 	int quiet = 0;
 	size_t i;
 	const char* prefix = NULL;
-	
+
 	for(i = 0; i < 2; i++) {
 		if(start_argv < argc && argv[start_argv][0] == '-') {
 			if(argv[start_argv][1] == 'q') {
@@ -91,11 +90,7 @@ int main(int argc, char *argv[]) {
 					path = argv[start_argv + 1];
 				else 
 					return usage(argv);
-				
-				if(!path) {
-					fprintf(stderr, "error: no path supplied.\n");
-					return EXIT_FAILURE;
-				}
+
 				start_argv += 2;
 			}
 		} else 
@@ -109,26 +104,26 @@ int main(int argc, char *argv[]) {
 		// priority 1: env var PROXYCHAINS_CONF_FILE
 		path = getenv(PROXYCHAINS_CONF_FILE_ENV_VAR);
 		if(check_path(path)) goto have;
-		
+
 		// priority 2; proxychains conf in actual dir
 		path = getcwd(buf, sizeof(buf));
 		snprintf(pbuf, sizeof(pbuf), "%s/%s", path, PROXYCHAINS_CONF_FILE);
 		path = pbuf;
 		if(check_path(path)) goto have;
-		
+
 		// priority 3; $HOME/.proxychains/proxychains.conf
 		path = getenv("HOME");
 		snprintf(pbuf, sizeof(pbuf), "%s/.proxychains/%s", path, PROXYCHAINS_CONF_FILE);
 		path = pbuf;
 		if(check_path(path)) goto have;
-		
+
 		// priority 4: /etc/proxychains.conf
 		path = "/etc/proxychains.conf";
 		if(check_path(path)) goto have;
 		perror("couldnt find configuration file");
 		return 1;
 	}
-	
+
 	have:
 
 	if(!quiet) fprintf(stderr, LOG_PREFIX "config file found: %s\n", path);
@@ -157,7 +152,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	if(!quiet) fprintf(stderr, LOG_PREFIX "preloading %s/%s\n", prefix, dll_name);
-	
+
 	snprintf(buf, sizeof(buf), "LD_PRELOAD=%s/%s", prefix, dll_name);
 
 	putenv(buf);

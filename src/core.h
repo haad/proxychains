@@ -151,9 +151,9 @@ pthread_mutex_t internal_ips_lock;
 # define proxychains_mutex_unlock(mutex) pthread_mutex_unlock(mutex)
 # define proxychains_mutex_init(mutex) pthread_mutex_init(mutex, NULL)
 #else
-# define proxychains_mutex_lock()
-# define proxychains_mutex_unlock()
-# define proxychains_mutex_init()
+# define proxychains_mutex_lock(mutex)
+# define proxychains_mutex_unlock(mutex)
+# define proxychains_mutex_init(mutex)
 #endif
 
 #endif 

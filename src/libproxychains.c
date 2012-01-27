@@ -19,7 +19,6 @@
 #define _GNU_SOURCE
 
 #include <sys/types.h>
-#include <sys/cdefs.h>
 
 #include <dlfcn.h>
 #include <errno.h>
