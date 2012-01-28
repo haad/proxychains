@@ -1,31 +1,106 @@
 #!/bin/sh
-echo "ProxyChains-4.0 (http://proxychains.sf.net)"
+echo "ProxyChains-4.0 (https://github.com/haad/proxychains)"
 
 usage() {
 
 	echo "	usage:"
-	echo "		$0 [h] [f config-file] <prog> [args]"
+	echo "	$0 [hq] [-f config-file] <prog> [args]"
+	echo "		-q make proxychains quite"
 	exit
+}
+
+find_proxy_conf() {
+
+	show_proxy_env
+	if [ -f "/usr/local/etc/proxychains.conf" ]; then
+		export PROXYCHAINS_CONF_FILE="/usr/local/etc/proxychains.conf"
+	else 
+		if [ -f "/etc/proxychains.conf" ];then
+			PROXYCHAINS_CONF_FILE="/etc/proxychains.conf"
+		fi
+	fi
+}
+
+#
+# XXX We should not overide possible user settings here. Just add libproxychains to it.
+# 
+setup_proxy_env() {
+
+	if [ -z "$PROXYCHAINS_CONF_FILE" ]; then
+		find_proxy_conf
+	fi
+
+	if [ $(uname -s) = "Darwin" ]; then
+		export DYLD_FORCE_FLAT_NAMESPACE=
+		export DYLD_INSERT_LIBRARIES=libproxychains4.dylib
+	else
+		export LD_PRELOAD=libproxychains.so.4
+	fi
+}
+
+disable_proxy_env() {
+
+	if [ $(uname -s) = "Darwin" ]; then
+		unset DYLD_FORCE_FLAT_NAMESPACE
+		export DYLD_INSERT_LIBRARIES=$(echo $DYLD_INSERT_LIBRARIES | sed -e 's/libproxychains4.dylib//g')
+		if [ -z $DYLD_INSERT_LIBRARIES ]; then
+			unset DYLD_INSERT_LIBRARIES
+		fi
+	else
+		export LD_PRELOAD=$(echo $DYLD_INSERT_LIBRARIES | sed -e 's/libproxychains.so.4//g')
+		if [ -z $LD_PRELOAD ]; then
+			unset LD_PRELOAD
+		fi
+	fi
+}
+
+show_proxy_env() {
+
+	echo "Proxified environment setup"
+	echo "PROXYCHAINS_CONF_FILE = $PROXYCHAINS_CONF_FILE"
+	
+	if [ $(uname -s) = "Darwin" ]; then
+		echo "DYLD_FORCE_FLAT_NAMESPACE = $DYLD_FORCE_FLAT_NAMESPACE"
+		echo "DYLD_INSERT_LIBRARIES = $DYLD_INSERT_LIBRARIES"
+	else
+		echo "LD_PRELOAD = $LD_PRELOAD"
+	fi
 }
 
 if [ $# = 0 ] ; then
 	usage
 fi
 
-if [ $1 = "-h" ]; then
-	usage
-fi
+case "$1" in
+	-h)
+		usage
+		;;
+	-f)
+		export PROXYCHAINS_CONF_FILE=$2;
+		shift;
+		shift;
+		;;
+	-q)
+		export PROXYCHAINS_QUIET_MODE=1;
+		shift;
+		;;
+	show)
+		show_proxy_env
+		return
+		;;
+esac
 
-if [ "$1" = "-f" ]; then
-	export PROXYCHAINS_CONF_FILE=$2;
-	shift;
-	shift;
-fi
-
-if [ $(uname) = "Darwin" ]; then
-	export DYLD_FORCE_FLAT_NAMESPACE=
-	export DYLD_INSERT_LIBRARIES=libproxychains4.dylib
-else
-	export LD_PRELOAD=libproxychains.so.4
-fi
-exec "$@"
+case "$1" in
+	on)
+		setup_proxy_env
+		show_proxy_env
+		;;
+	off)
+		disable_proxy_env
+		show_proxy_env
+		;;
+	*)
+		setup_proxy_env
+		exec "$@"
+		;;
+esac
