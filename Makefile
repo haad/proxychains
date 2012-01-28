@@ -45,10 +45,11 @@ CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\" -DINSTALL_PREFIX=\"$(prefix)\" -DDLL_NAME=\"
 all: $(ALL_LIBS) $(ALL_TOOLS)
 
 #install: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(DESTDIR)$(LDSO_PATHNAME)
-install: 
+install:
+	install -d $(bindir) $(libdir) $(confdir) $(includedir)
 	install $(INSTALL_FLAGS) 755 $(ALL_TOOLS) $(bindir)/
 	install $(INSTALL_FLAGS) 644 $(ALL_LIBS) $(libdir)/
-	install $(INSTALL_FLAGS) 644 src/proxychains.conf $(prefix)/etc/
+	install $(INSTALL_FLAGS) 644 src/proxychains.conf $(confdir)
 
 clean:
 	rm -f $(ALL_LIBS)
