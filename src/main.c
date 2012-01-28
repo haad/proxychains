@@ -128,8 +128,9 @@ int main(int argc, char *argv[]) {
 		if(check_path(path))
 			goto have;
 
+		/* Check for default config file in two locations {install_prefix}/etc /etc */
 		// priority 4: $INSTALL_PREFIX/etc/proxychains.conf
-		snprintf(pbuf, sizeof(pbuf), "%s/%s", INSTALL_PREFIX, PROXYCHAINS_CONF_FILE);
+		snprintf(pbuf, sizeof(pbuf), "%s/proxychains.conf", INSTALL_PREFIX);
 		path = pbuf;
 		if(check_path(path))
 			goto have;
