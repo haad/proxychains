@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
 
 		/* Check for default config file in two locations {install_prefix}/etc /etc */
 		// priority 4: $INSTALL_PREFIX/etc/proxychains.conf
-		snprintf(pbuf, sizeof(pbuf), "%s/proxychains.conf", INSTALL_PREFIX);
+		snprintf(pbuf, sizeof(pbuf), "%s/etc/proxychains.conf", INSTALL_PREFIX);
 		path = pbuf;
 		if(check_path(path))
 			goto have;
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 		path = "/etc/proxychains.conf";
 		if(check_path(path))
 			goto have;
-		perror("couldnt find configuration file");
+		perror("Couldn't find configuration file");
 		return 1;
 	}
 
