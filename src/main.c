@@ -174,12 +174,12 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, LOG_PREFIX "preloading %s/%s\n", prefix, dll_name);
 
 #ifndef IS_MAC
-	snprintf(buf, sizeof(buf), "LD_PRELOAD=%s/%s", prefix, dll_name);
-	putenv(buf);
+	snprintf(buf, sizeof(buf), "%s/%s", prefix, dll_name);
+	setenv("LD_PRELOAD", buf, 1);
 #else
-	snprintf(buf, sizeof(buf), "DYLD_INSERT_LIBRARIES=%s/%s", prefix, dll_name);
-	putenv(buf);
-	putenv("DYLD_FORCE_FLAT_NAMESPACE=1");
+	snprintf(buf, sizeof(buf), "%s/%s", prefix, dll_name);
+	setenv("DYLD_INSERT_LIBRARIES", buf, 1);
+	setenv("DYLD_FORCE_FLAT_NAMESPACE", "1", 1);
 #endif
 	execvp(argv[start_argv], &argv[start_argv]);
 	perror("proxychains can't load process....");

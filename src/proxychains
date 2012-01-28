@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "ProxyChains-3.1 (http://proxychains.sf.net)"
+echo "ProxyChains-4.0 (http://proxychains.sf.net)"
 
 usage() {
 
@@ -22,5 +22,10 @@ if [ "$1" = "-f" ]; then
 	shift;
 fi
 
-export LD_PRELOAD=libproxychains.so.3
+if [ $(uname) = "Darwin" ]; then
+	export DYLD_FORCE_FLAT_NAMESPACE=
+	export DYLD_INSERT_LIBRARIES=libproxychains4.dylib
+else
+	export LD_PRELOAD=libproxychains.so.4
+fi
 exec "$@"
