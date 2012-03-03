@@ -305,7 +305,7 @@ int connect(int sock, const struct sockaddr *addr, unsigned int len) {
 #endif
 
 	// check if connect called from proxydns
-	remote_dns_connect = ((p_addr_in->s_addr & 0xff) == remote_dns_subnet);
+        remote_dns_connect = (ntohl(p_addr_in->s_addr) >> 24 == remote_dns_subnet);
 
 	for(i = 0; i < num_localnet_addr && !remote_dns_connect; i++) {
 		if((localnet_addr[i].in_addr.s_addr & localnet_addr[i].netmask.s_addr)
