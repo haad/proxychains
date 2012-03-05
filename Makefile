@@ -17,7 +17,7 @@ SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
 LOBJS = src/core.o src/libproxychains.o
 
-CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror 
+CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror
 LDFLAGS = -shared -fPIC -ldl -lpthread
 INC     = 
 PIC     = -fPIC
@@ -46,10 +46,10 @@ all: $(ALL_LIBS) $(ALL_TOOLS)
 
 #install: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(DESTDIR)$(LDSO_PATHNAME)
 install:
-	install -d $(bindir) $(libdir) $(confdir) $(includedir)
-	install $(INSTALL_FLAGS) 755 $(ALL_TOOLS) $(bindir)/
-	install $(INSTALL_FLAGS) 644 $(ALL_LIBS) $(libdir)/
-	install $(INSTALL_FLAGS) 644 src/proxychains.conf $(confdir)
+	install -d $(DESTDIR)/$(bindir) $(DESTDIR)/$(libdir) $(DESTDIR)/$(confdir) $(DESTDIR)/$(includedir)
+	install $(INSTALL_FLAGS) 755 $(ALL_TOOLS) $(DESTDIR)/$(bindir)/
+	install $(INSTALL_FLAGS) 644 $(ALL_LIBS) $(DESTDIR)/$(libdir)/
+	install $(INSTALL_FLAGS) 644 src/proxychains.conf $(DESTDIR)/$(confdir)
 
 clean:
 	rm -f $(ALL_LIBS)
