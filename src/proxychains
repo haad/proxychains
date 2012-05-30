@@ -5,7 +5,7 @@ usage() {
 
 	echo "	usage:"
 	echo "	$0 [hq] [-f config-file] <prog> [args]"
-	echo "		-q make proxychains quite"
+	echo "		-q make proxychains quiet"
 	exit
 }
 
