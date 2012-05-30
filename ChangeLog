@@ -1,6 +1,18 @@
 ProxyChains version history (public releases)
 ====================
 
+Ver 4.1
+	  	
+Version (4.x) removes the dnsresolver script which required a dynamically
+linked "dig" binary to be present with remote DNS lookup.
+this speeds up any operation involving DNS, as the old script had to use TCP.
+additionally it allows to use .onion urls when used with TOR.
+also it removed the broken autoconf build system with a simple Makefile.
+there's a ./configure script though for convenience.
+it also adds support for a config file passed via command line switches/
+environment variables.	  	
+
+-------------------------------------------------------------------------
 ver 3.1
 
 changed:
