@@ -19,21 +19,6 @@ to follow through proxy (or proxy chain). It is a kind of proxifier.
 It acts like sockscap / permeo / eborder driver ( intercepts TCP calls )
 It is FREE.
 
-Changelog:
-----------
-
-Version (4.x) removes the dnsresolver script which required a dynamically
-linked "dig" binary to be present with remote DNS lookup.
-this speeds up any operation involving DNS, as the old script had to use TCP.
-additionally it allows to use .onion urls when used with TOR.
-also it removed the broken autoconf build system with a simple Makefile.
-there's a ./configure script though for convenience.
-it also adds support for a config file passed via command line switches/
-environment variables.
-
-Version (3.x) introduces support for DNS resolving through proxy 
-it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
-Auth-types: socks - "user/pass" , http - "basic".
 
 When to use it ?
 1) When the only way to get "outside" from your LAN is through proxy server.
