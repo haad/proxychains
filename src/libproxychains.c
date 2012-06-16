@@ -41,13 +41,14 @@
 #define     SOCKADDR_2(x)     (satosin(x)->sin_addr)
 #define     SOCKPORT(x)     (satosin(x)->sin_port)
 #define     SOCKFAMILY(x)     (satosin(x)->sin_family)
-#define     MAX_CHAIN 30*1024
+#define     MAX_CHAIN 512
 
 int tcp_read_time_out;
 int tcp_connect_time_out;
 int proxychains_got_chain_data = 0;
 int proxychains_quiet_mode = 0;
 int proxychains_resolver = 0;
+
 static int init_l = 0;
 
 unsigned int proxychains_proxy_count = 0;
@@ -60,81 +61,87 @@ proxy_data proxychains_pd[MAX_CHAIN];
 
 size_t num_localnet_addr = 0;
 
-static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct);
-static void init_lib(void);
+#ifdef THREAD_SAFE
+pthread_once_t init_once = PTHREAD_ONCE_INIT;
+#endif
+static int init_l = 0;
 
-static void init_lib(void) {
+static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct);
+
+static void load_sym(void** funcptr, char* symname, void* proxyfunc) {
+
+	*funcptr = dlsym(RTLD_NEXT, symname);
+	
+	if(!(*funcptr)) {
+		fprintf(stderr, "Cannot load symbol '%s' %s\n", symname, dlerror());
+		exit(1);
+	} else {
+		PDEBUG("loaded symbol '%s'" " real addr %p  wrapped addr %p\n", symname, (*funcptr), proxyfunc);
+	}
+	if((*funcptr) == proxyfunc) {
+		PDEBUG("circular reference detected, aborting!\n");
+		abort();
+	}
+}
+
+#define INIT() init_lib_wrapper(__FUNCTION__)
+
+static void do_init(void) {
+	static const struct override_info {
+		void* funcptr;
+		char* symname;
+		void* proxyfunc;
+	} override_symbols[] = {
+		#define SYM_ENTRY(X) { .funcptr = &true_ ## X,  .symname = # X, .proxyfunc = X,} 
+		SYM_ENTRY(connect),
+		SYM_ENTRY(gethostbyname),
+		SYM_ENTRY(getaddrinfo),
+		SYM_ENTRY(freeaddrinfo),
+		SYM_ENTRY(gethostbyaddr),
+		SYM_ENTRY(getnameinfo),
+		#undef SYM_ENTRY
+	};
+	unsigned i;
 	MUTEX_INIT(&internal_ips_lock, NULL);
 	/* read the config file */
 	get_chain_data(proxychains_pd, &proxychains_proxy_count, &proxychains_ct);
 
 	proxychains_write_log(LOG_PREFIX "DLL init\n");
 
-	true_connect = (connect_t) dlsym(RTLD_NEXT, "connect");
-
-	if(!true_connect) {
-		fprintf(stderr, "Cannot load symbol 'connect' %s\n", dlerror());
-		exit(1);
-	} else {
-		PDEBUG("loaded symbol 'connect'" " real addr %p  wrapped addr %p\n", true_connect, connect);
-	}
-	if(connect == true_connect) {
-		PDEBUG("circular reference detected, aborting!\n");
-		abort();
-	}
-
-	true_gethostbyname = (gethostbyname_t)
-	    dlsym(RTLD_NEXT, "gethostbyname");
-
-	if(!true_gethostbyname) {
-		fprintf(stderr, "Cannot load symbol 'gethostbyname' %s\n", dlerror());
-		exit(1);
-	} else {
-		PDEBUG("loaded symbol 'gethostbyname'"
-		       " real addr %p  wrapped addr %p\n", true_gethostbyname, gethostbyname);
-	}
-	true_getaddrinfo = (getaddrinfo_t)
-	    dlsym(RTLD_NEXT, "getaddrinfo");
-
-	if(!true_getaddrinfo) {
-		fprintf(stderr, "Cannot load symbol 'getaddrinfo' %s\n", dlerror());
-		exit(1);
-	} else {
-		PDEBUG("loaded symbol 'getaddrinfo'" " real addr %p  wrapped addr %p\n", true_getaddrinfo, getaddrinfo);
-	}
-	true_freeaddrinfo = (freeaddrinfo_t)
-	    dlsym(RTLD_NEXT, "freeaddrinfo");
-
-	if(!true_freeaddrinfo) {
-		fprintf(stderr, "Cannot load symbol 'freeaddrinfo' %s\n", dlerror());
-		exit(1);
-	} else {
-		PDEBUG("loaded symbol 'freeaddrinfo'"
-		       " real addr %p  wrapped addr %p\n", true_freeaddrinfo, freeaddrinfo);
-	}
-	true_gethostbyaddr = (gethostbyaddr_t)
-	    dlsym(RTLD_NEXT, "gethostbyaddr");
-
-	if(!true_gethostbyaddr) {
-		fprintf(stderr, "Cannot load symbol 'gethostbyaddr' %s\n", dlerror());
-		exit(1);
-	} else {
-		PDEBUG("loaded symbol 'gethostbyaddr'"
-		       " real addr %p  wrapped addr %p\n", true_gethostbyaddr, gethostbyaddr);
-	}
-	true_getnameinfo = (getnameinfo_t)
-	    dlsym(RTLD_NEXT, "getnameinfo");
-
-	if(!true_getnameinfo) {
-		fprintf(stderr, "Cannot load symbol 'getnameinfo' %s\n", dlerror());
-		exit(1);
-	} else {
-		PDEBUG("loaded symbol 'getnameinfo'" " real addr %p  wrapped addr %p\n", true_getnameinfo, getnameinfo);
+	for (i = 0; i < (sizeof(override_symbols) / sizeof(override_symbols[0])); i++) {
+		load_sym(override_symbols[i].funcptr, override_symbols[i].symname, override_symbols[i].proxyfunc);
 	}
 	init_l = 1;
 }
 
-static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct) {
+static void init_lib_wrapper(const char* caller) {
+#ifndef DEBUG
+	(void) caller;
+#endif
+#ifndef THREAD_SAFE
+	if(init_l) return;
+	PDEBUG("%s called from %s\n", __FUNCTION__,  caller);
+	do_init();
+#else
+	if(!init_l) PDEBUG("%s called from %s\n", __FUNCTION__,  caller);
+	pthread_once(&init_once, do_init);
+#endif
+}
+
+/* if we use gcc >= 3, we can instruct the dynamic loader 
+ * to call init_lib at link time. otherwise it gets loaded
+ * lazily, which has the disadvantage that there's a potential
+ * race condition if 2 threads call it before init_l is set 
+ * and PTHREAD support was disabled */
+#if __GNUC__ > 2
+__attribute__((constructor))
+static void gcc_init(void) {
+	INIT();
+}
+#endif
+
+/* get configuration from config file */
+static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct) {
 	int count = 0, port_n = 0, list = 0;
 	char buff[1024], type[1024], host[1024], user[1024];
 	char *env;
@@ -172,7 +179,11 @@ static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, ch
 
 	while(fgets(buff, sizeof(buff), file)) {
 		if(buff[0] != '\n' && buff[strspn(buff, " ")] != '#') {
+			/* proxylist has to come last */
 			if(list) {
+				if(count >= MAX_CHAIN)
+					break;
+				
 				memset(&pd[count], 0, sizeof(proxy_data));
 
 				pd[count].ps = PLAY_STATE;
@@ -193,8 +204,7 @@ static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, ch
 					continue;
 
 				if(pd[count].ip.as_int && port_n && pd[count].ip.as_int != (uint32_t) - 1)
-					if(++count == MAX_CHAIN)
-						break;
+					count++;
 			} else {
 				if(strstr(buff, "[ProxyList]")) {
 					list = 1;
@@ -275,6 +285,11 @@ static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, ch
 	proxychains_got_chain_data = 1;
 }
 
+<<<<<<< HEAD
+=======
+/*******  HOOK FUNCTIONS  *******/
+
+>>>>>>> rofl0r/master
 int connect(int sock, const struct sockaddr *addr, unsigned int len) {
 	int socktype = 0, flags = 0, ret = 0;
 	socklen_t optlen = 0;
@@ -287,8 +302,7 @@ int connect(int sock, const struct sockaddr *addr, unsigned int len) {
 	size_t i;
 	int remote_dns_connect = 0;
 
-	if(!init_l)
-		init_lib();
+	INIT();
 	optlen = sizeof(socktype);
 	getsockopt(sock, SOL_SOCKET, SO_TYPE, &socktype, &optlen);
 	if(!(SOCKFAMILY(*addr) == AF_INET && socktype == SOCK_STREAM))
@@ -335,8 +349,7 @@ int connect(int sock, const struct sockaddr *addr, unsigned int len) {
 }
 
 struct hostent *gethostbyname(const char *name) {
-	if(!init_l)
-		init_lib();
+	INIT();
 
 	PDEBUG("gethostbyname: %s\n", name);
 
@@ -351,8 +364,7 @@ struct hostent *gethostbyname(const char *name) {
 int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
 	int ret = 0;
 
-	if(!init_l)
-		init_lib();
+	INIT();
 
 	PDEBUG("getaddrinfo: %s %s\n", node, service);
 
@@ -365,8 +377,7 @@ int getaddrinfo(const char *node, const char *service, const struct addrinfo *hi
 }
 
 void freeaddrinfo(struct addrinfo *res) {
-	if(!init_l)
-		init_lib();
+	INIT();
 
 	PDEBUG("freeaddrinfo %p \n", res);
 
@@ -394,9 +405,8 @@ int getnameinfo(const struct sockaddr *sa,
 	char ip_buf[16];
 	int ret = 0;
 
-	if(!init_l)
-		init_lib();
-
+	INIT();
+	
 	PDEBUG("getnameinfo: %s %s\n", host, serv);
 
 	if(!proxychains_resolver) {
@@ -418,8 +428,7 @@ struct hostent *gethostbyaddr(const void *addr, socklen_t len, int type) {
 	static char *list[2];
 	static struct hostent he;
 
-	if(!init_l)
-		init_lib();
+	INIT();
 
 	PDEBUG("TODO: proper gethostbyaddr hook\n");
 
