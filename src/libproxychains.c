@@ -49,8 +49,6 @@ int proxychains_got_chain_data = 0;
 int proxychains_quiet_mode = 0;
 int proxychains_resolver = 0;
 
-static int init_l = 0;
-
 unsigned int proxychains_proxy_count = 0;
 unsigned int proxychains_max_chain = 1;
 unsigned int remote_dns_subnet = 224;
@@ -71,7 +69,7 @@ static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, ch
 static void load_sym(void** funcptr, char* symname, void* proxyfunc) {
 
 	*funcptr = dlsym(RTLD_NEXT, symname);
-	
+
 	if(!(*funcptr)) {
 		fprintf(stderr, "Cannot load symbol '%s' %s\n", symname, dlerror());
 		exit(1);
@@ -92,7 +90,7 @@ static void do_init(void) {
 		char* symname;
 		void* proxyfunc;
 	} override_symbols[] = {
-		#define SYM_ENTRY(X) { .funcptr = &true_ ## X,  .symname = # X, .proxyfunc = X,} 
+		#define SYM_ENTRY(X) { .funcptr = &true_ ## X,  .symname = # X, .proxyfunc = X,}
 		SYM_ENTRY(connect),
 		SYM_ENTRY(gethostbyname),
 		SYM_ENTRY(getaddrinfo),
@@ -128,10 +126,10 @@ static void init_lib_wrapper(const char* caller) {
 #endif
 }
 
-/* if we use gcc >= 3, we can instruct the dynamic loader 
+/* if we use gcc >= 3, we can instruct the dynamic loader
  * to call init_lib at link time. otherwise it gets loaded
  * lazily, which has the disadvantage that there's a potential
- * race condition if 2 threads call it before init_l is set 
+ * race condition if 2 threads call it before init_l is set
  * and PTHREAD support was disabled */
 #if __GNUC__ > 2
 __attribute__((constructor))
@@ -183,7 +181,7 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 			if(list) {
 				if(count >= MAX_CHAIN)
 					break;
-				
+
 				memset(&pd[count], 0, sizeof(proxy_data));
 
 				pd[count].ps = PLAY_STATE;
@@ -285,11 +283,8 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 	proxychains_got_chain_data = 1;
 }
 
-<<<<<<< HEAD
-=======
 /*******  HOOK FUNCTIONS  *******/
 
->>>>>>> rofl0r/master
 int connect(int sock, const struct sockaddr *addr, unsigned int len) {
 	int socktype = 0, flags = 0, ret = 0;
 	socklen_t optlen = 0;
@@ -406,7 +401,7 @@ int getnameinfo(const struct sockaddr *sa,
 	int ret = 0;
 
 	INIT();
-	
+
 	PDEBUG("getnameinfo: %s %s\n", host, serv);
 
 	if(!proxychains_resolver) {
