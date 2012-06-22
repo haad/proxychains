@@ -67,5 +67,4 @@ $(LDSO_PATHNAME): $(LOBJS)
 $(ALL_TOOLS): $(OBJS)
 	$(CC) src/main.o -o $(PXCHAINS)
 
-
 .PHONY: all clean install

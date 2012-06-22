@@ -11,11 +11,12 @@ spliteq() {
 
 parsearg() {
 	case "$1" in
-	--prefix=*) prefix=$(spliteq "$1");;
+	--prefix=*) prefix=`spliteq $1`;;
 	--exec_prefix=*) exec_prefix=`spliteq $1`;;
 	--bindir=*) bindir=`spliteq $1`;;
 	--libdir=*) libdir=`spliteq $1`;;
 	--includedir=*) includedir=`spliteq $1`;;
+	--sysconfdir=*) sysconfdir=`spliteq $1`;;
 	esac
 }
 
@@ -30,23 +31,27 @@ while true ; do
 	esac
 done
 
-if [ ! $exec_prefix ] ; then
+if [ -z "$exec_prefix" ] ; then
 	exec_prefix=$prefix
 fi
 
-if [ ! $libdir ] ; then
+if [ -z "$libdir" ] ; then
 	libdir=$prefix/lib
 fi
 
-if [ ! $includedir ] ; then
+if [ -z "$includedir" ] ; then
 	includedir=$prefix/include
 fi
 
-if [ ! $bindir ] ; then
+if [ -z "$sysconfdir" ] ; then
+	sysconfdir=$prefix/etc
+fi
+
+if [ -z "$bindir" ] ; then
 	bindir=$exec_prefix/bin
 fi
 
-if [ ! $CC ] ; then
+if [ -z "$CC" ] ; then
 	CC=cc
 fi
 
@@ -58,6 +63,7 @@ echo exec_prefix=$exec_prefix>>config.mak
 echo bindir=$bindir>>config.mak
 echo libdir=$libdir>>config.mak
 echo includedir=$includedir>>config.mak
+echo sysconfdir=$sysconfdir>>config.mak
 if ismac ; then
 	echo LDSO_SUFFIX=dylib>>config.mak
 	echo MAC_CFLAGS+=-DIS_MAC=1 -arch x86_64 -arch i386 >>config.mak
