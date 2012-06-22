@@ -19,6 +19,7 @@
 #define _GNU_SOURCE
 
 #include <sys/types.h>
+#include <sys/param.h>
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -138,6 +139,28 @@ static void gcc_init(void) {
 }
 #endif
 
+FILE *
+open_config_file() {
+	char home_conf[MAXPATHLEN], prefix_conf[MAXPATHLEN];
+	FILE *file;
+
+	snprintf(home_conf, 256, "%s/.proxychains/proxychains.conf", getenv("HOME"));
+	snprintf(prefix_conf, 256, "%s/etc/proxychains.conf", INSTALL_PREFIX);
+
+	if(!(file = fopen("./proxychains.conf", "r"))) {
+		if(!(file = fopen(home_conf, "r"))) {
+			if(!(file = fopen(prefix_conf, "r"))) {
+				if(!(file = fopen("/etc/proxychains.conf", "r"))) {
+					perror("Can't locate proxychains.conf");
+					exit(1);
+				}
+			}
+		}
+	}
+
+	return file;
+}
+
 /* get configuration from config file */
 static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct) {
 	int count = 0, port_n = 0, list = 0;
@@ -161,15 +184,8 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 	 */
 	env = getenv(PROXYCHAINS_CONF_FILE_ENV_VAR);
 
-	snprintf(buff, 256, "%s/.proxychains/proxychains.conf", getenv("HOME"));
-
 	if(!env || (!(file = fopen(env, "r"))))
-		if(!(file = fopen("./proxychains.conf", "r")))
-			if(!(file = fopen(buff, "r")))
-				if(!(file = fopen("/etc/proxychains.conf", "r"))) {
-					perror("Can't locate proxychains.conf");
-					exit(1);
-				}
+		file = open_config_file();
 
 	env = getenv(PROXYCHAINS_QUIET_MODE_ENV_VAR);
 	if(env && *env == '1')
