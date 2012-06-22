@@ -272,7 +272,6 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 	int len;
 	unsigned char buff[BUFF_SIZE];
 	char ip_buf[16];
-	
 	//memset (buff, 0, sizeof(buff));
 
 	switch (pt) {
@@ -711,7 +710,7 @@ int connect_proxy_chain(int sock, ip_type target_ip,
 	proxychains_write_log("\n!!!need more proxies!!!\n");
 	error_strict:
 	PDEBUG("error\n");
-	
+
 	release_all(pd, proxy_count);
 	if(ns != -1)
 		close(ns);
