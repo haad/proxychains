@@ -819,6 +819,31 @@ void proxy_freeaddrinfo(struct addrinfo *res) {
 	free(res);
 }
 
+void proxy_getserverbyname(const char * service, struct servent *se_buf,
+	char * buf, size_t buf_len, struct servent **se_result)
+{
+
+#ifdef __linux__
+	getservbyname_r(service, NULL, se_buf, buf, buf_len, se_result);
+#endif
+
+#ifdef __APPLE__
+	struct servent *se;
+#ifdef THREAD_SAFE
+	MUTEX_LOCK(&internal_getsrvbyname_lock);
+#endif
+	if(service)
+		se = getservbyname(service, NULL);
+	if (!se)
+		memcpy(se_buf, se, buf_len);
+		*se_result = se_buf;
+#ifdef THREAD_SAFE
+	MUTEX_UNLOCK(&internal_getsrvbyname_lock);
+#endif
+
+#endif
+}
+
 
 int proxy_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
 	struct gethostbyname_data ghdata;
@@ -833,7 +858,7 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 //      printf("proxy_getaddrinfo node %s service %s\n",node,service);
 	space = calloc(1, sizeof(struct addrinfo_data));
 	if(!space) goto err1;
-	
+
 	if(node && !inet_aton(node, &((struct sockaddr_in *) &space->sockaddr_space)->sin_addr)) {
 		hp = proxy_gethostbyname(node, &ghdata);
 		if(hp)
@@ -842,14 +867,15 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 		else
 			goto err2;
 	}
-	if(service) getservbyname_r(service, NULL, &se_buf, buf, sizeof(buf), &se);
+	if(service)
+		proxy_getserverbyname(service, &se_buf, buf, sizeof(buf), &se);
 
 	port = se ? se->s_port : htons(atoi(service ? service : "0"));
 	((struct sockaddr_in *) &space->sockaddr_space)->sin_port = port;
 
 	*res = p = &space->addrinfo_space;
 	assert((size_t)p == (size_t) space);
-	
+
 	p->ai_addr = &space->sockaddr_space;
 	if(node)
 		strncpy(space->addr_name, node, sizeof(space->addr_name));
@@ -865,7 +891,7 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 	} else {
 		p->ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG);
 	}
-	
+
 	goto out;
 	err2:
 	free(space);
