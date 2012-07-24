@@ -44,6 +44,13 @@
 #define     SOCKFAMILY(x)     (satosin(x)->sin_family)
 #define     MAX_CHAIN 512
 
+connect_t true_connect;
+gethostbyname_t true_gethostbyname;
+getaddrinfo_t true_getaddrinfo;
+freeaddrinfo_t true_freeaddrinfo;
+getnameinfo_t true_getnameinfo;
+gethostbyaddr_t true_gethostbyaddr;
+
 int tcp_read_time_out;
 int tcp_connect_time_out;
 int proxychains_got_chain_data = 0;
@@ -67,49 +74,38 @@ static int init_l = 0;
 
 static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct);
 
-static void load_sym(void** funcptr, char* symname, void* proxyfunc) {
+static void* load_sym(char* symname, void* proxyfunc) {
 
-	*funcptr = dlsym(RTLD_NEXT, symname);
-
-	if(!(*funcptr)) {
+	void *funcptr = dlsym(RTLD_NEXT, symname);
+	if(!funcptr) {
 		fprintf(stderr, "Cannot load symbol '%s' %s\n", symname, dlerror());
 		exit(1);
 	} else {
-		PDEBUG("loaded symbol '%s'" " real addr %p  wrapped addr %p\n", symname, (*funcptr), proxyfunc);
+		PDEBUG("loaded symbol '%s'" " real addr %p  wrapped addr %p\n", symname, funcptr, proxyfunc);
 	}
-	if((*funcptr) == proxyfunc) {
+	if(funcptr == proxyfunc) {
 		PDEBUG("circular reference detected, aborting!\n");
 		abort();
 	}
+	return funcptr;
 }
 
 #define INIT() init_lib_wrapper(__FUNCTION__)
 
+#define SETUP_SYM(X) do { true_ ## X = load_sym( # X, X ); } while(0)
+
 static void do_init(void) {
-	static const struct override_info {
-		void* funcptr;
-		char* symname;
-		void* proxyfunc;
-	} override_symbols[] = {
-		#define SYM_ENTRY(X) { .funcptr = &true_ ## X,  .symname = # X, .proxyfunc = X,}
-		SYM_ENTRY(connect),
-		SYM_ENTRY(gethostbyname),
-		SYM_ENTRY(getaddrinfo),
-		SYM_ENTRY(freeaddrinfo),
-		SYM_ENTRY(gethostbyaddr),
-		SYM_ENTRY(getnameinfo),
-		#undef SYM_ENTRY
-	};
-	unsigned i;
 	MUTEX_INIT(&internal_ips_lock, NULL);
 	/* read the config file */
 	get_chain_data(proxychains_pd, &proxychains_proxy_count, &proxychains_ct);
 
 	proxychains_write_log(LOG_PREFIX "DLL init\n");
-
-	for (i = 0; i < (sizeof(override_symbols) / sizeof(override_symbols[0])); i++) {
-		load_sym(override_symbols[i].funcptr, override_symbols[i].symname, override_symbols[i].proxyfunc);
-	}
+	SETUP_SYM(connect);
+	SETUP_SYM(gethostbyname);
+	SETUP_SYM(getaddrinfo);
+	SETUP_SYM(freeaddrinfo);
+	SETUP_SYM(gethostbyaddr);
+	SETUP_SYM(getnameinfo);
 	init_l = 1;
 }
 
@@ -168,7 +164,7 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 	char *env;
 	char local_in_addr_port[32];
 	char local_in_addr[32], local_in_port[32], local_netmask[32];
-	FILE *file;
+	FILE *file = NULL;
 
 	if(proxychains_got_chain_data)
 		return;
@@ -177,15 +173,8 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 	tcp_read_time_out = 4 * 1000;
 	tcp_connect_time_out = 10 * 1000;
 	*ct = DYNAMIC_TYPE;
-
-	/*
-	 * Get path to configuration file from env this file has priority
-	 * if it's defined.
-	 */
-	env = getenv(PROXYCHAINS_CONF_FILE_ENV_VAR);
-
-	if(!env || (!(file = fopen(env, "r"))))
-		file = open_config_file();
+	env = get_config_path(getenv(PROXYCHAINS_CONF_FILE_ENV_VAR), buff, sizeof(buff));
+	file = fopen(env, "r");
 
 	env = getenv(PROXYCHAINS_QUIET_MODE_ENV_VAR);
 	if(env && *env == '1')
@@ -359,13 +348,14 @@ int connect(int sock, const struct sockaddr *addr, unsigned int len) {
 	return ret;
 }
 
+static struct gethostbyname_data ghbndata;
 struct hostent *gethostbyname(const char *name) {
 	INIT();
 
 	PDEBUG("gethostbyname: %s\n", name);
 
 	if(proxychains_resolver)
-		return proxy_gethostbyname(name);
+		return proxy_gethostbyname(name, &ghbndata);
 	else
 		return true_gethostbyname(name);
 
@@ -394,12 +384,8 @@ void freeaddrinfo(struct addrinfo *res) {
 
 	if(!proxychains_resolver)
 		true_freeaddrinfo(res);
-	else {
-		if (res != NULL) {
-			free(res->ai_addr);
-			free(res);
-		}
-	}
+	else
+		proxy_freeaddrinfo(res);
 	return;
 }
 

@@ -33,6 +33,11 @@
 #include <time.h>
 #include <sys/time.h>
 #include <stdarg.h>
+#include <assert.h>
+#ifdef THREAD_SAFE
+#include <pthread.h>
+pthread_mutex_t internal_ips_lock;
+#endif
 
 #include "core.h"
 #include "common.h"
@@ -147,21 +152,16 @@ static void encode_base_64(char *src, char *dest, int max_len) {
 	*dest++ = 0;
 }
 
-#define LOG_BUFF 1024*20
-
-int proxychains_write_log(char *str, ...) {
-	char buff[LOG_BUFF];
+void proxychains_write_log(char *str, ...) {
+	char buff[1024*20];
 	va_list arglist;
-	FILE *log_file;
-	log_file = stderr;
 	if(!proxychains_quiet_mode) {
 		va_start(arglist, str);
-		vsprintf(buff, str, arglist);
+		vsnprintf(buff, sizeof(buff), str, arglist);
 		va_end(arglist);
-		fprintf(log_file, "%s", buff);
-		fflush(log_file);
+		fprintf(stderr, "%s", buff);
+		fflush(stderr);
 	}
-	return EXIT_SUCCESS;
 }
 
 static int write_n_bytes(int fd, char *buff, size_t size) {
@@ -202,26 +202,15 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len) {
 	pfd[0].events = POLLOUT;
 	fcntl(sock, F_SETFL, O_NONBLOCK);
 	ret = true_connect(sock, addr, len);
-#ifdef DEBUG
-	if(ret == -1)
-		perror("true_connect");
-	printf("\nconnect ret=%d\n", ret);
-
-	fflush(stdout);
-#endif
+	PDEBUG("\nconnect ret=%d\n", ret);
+	
 	if(ret == -1 && errno == EINPROGRESS) {
 		ret = poll_retry(pfd, 1, tcp_connect_time_out);
-#ifdef DEBUG
-		printf("\npoll ret=%d\n", ret);
-		fflush(stdout);
-#endif
+		PDEBUG("\npoll ret=%d\n", ret);
 		if(ret == 1) {
 			value_len = sizeof(socklen_t);
 			getsockopt(sock, SOL_SOCKET, SO_ERROR, &value, &value_len);
-#ifdef DEBUG
-			printf("\nvalue=%d\n", value);
-			fflush(stdout);
-#endif
+			PDEBUG("\nvalue=%d\n", value);
 			if(!value)
 				ret = 0;
 			else
@@ -230,6 +219,10 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len) {
 			ret = -1;
 		}
 	} else {
+#ifdef DEBUG
+		if(ret == -1)
+			perror("true_connect");
+#endif
 		if(ret != 0)
 			ret = -1;
 	}
@@ -260,6 +253,8 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 		if(!dns_len)
 			goto err;
 	}
+	
+	PDEBUG("host dns %s\n", dns_name ? dns_name : "<NULL>");
 
 	size_t ulen = strlen(user);
 	size_t passlen = strlen(pass);
@@ -596,7 +591,7 @@ static int chain_step(int ns, proxy_data * pfrom, proxy_data * pto) {
 			break;
 		case SOCKET_ERROR:
 			pto->ps = DOWN_STATE;
-			proxychains_write_log("<--timeout\n");
+			proxychains_write_log("<--socket error or timeout!\n");
 			close(ns);
 			break;
 	}
@@ -718,14 +713,9 @@ int connect_proxy_chain(int sock, ip_type target_ip,
 	return -1;
 }
 
-// TODO: all those buffers aren't threadsafe, but since no memory allocation happens there shouldnt be any segfaults
-static struct hostent hostent_space;
-static in_addr_t resolved_addr;
-static char *resolved_addr_p[2];
-static char addr_name[1024 * 8];
 static const ip_type local_host = { {127, 0, 0, 1} };
 
-struct hostent *proxy_gethostbyname(const char *name) {
+struct hostent *proxy_gethostbyname(const char *name, struct gethostbyname_data* data) {
 	char buff[256];
 	uint32_t i, hash;
 	// yep, new_mem never gets freed. once you passed a fake ip to the client, you can't "retreat" it
@@ -733,18 +723,20 @@ struct hostent *proxy_gethostbyname(const char *name) {
 	size_t l;
 	struct hostent *hp;
 
-	resolved_addr_p[0] = (char *) &resolved_addr;
-	resolved_addr_p[1] = NULL;
-	hostent_space.h_addr_list = resolved_addr_p;
-	resolved_addr = 0;
+	data->resolved_addr_p[0] = (char *) &data->resolved_addr;
+	data->resolved_addr_p[1] = NULL;
+
+	data->hostent_space.h_addr_list = data->resolved_addr_p;
+
+	data->resolved_addr = 0;
 
 	gethostname(buff, sizeof(buff));
 
 	if(!strcmp(buff, name)) {
-		resolved_addr = inet_addr(buff);
-		if(resolved_addr == (in_addr_t) (-1))
-			resolved_addr = (in_addr_t) (local_host.as_int);
-		return &hostent_space;
+		data->resolved_addr = inet_addr(buff);
+		if(data->resolved_addr == (in_addr_t) (-1))
+			data->resolved_addr = (in_addr_t) (local_host.as_int);
+		return &data->hostent_space;
 	}
 
 	memset(buff, 0, sizeof(buff));
@@ -761,7 +753,7 @@ struct hostent *proxy_gethostbyname(const char *name) {
 	if(internal_ips.counter) {
 		for(i = 0; i < internal_ips.counter; i++) {
 			if(internal_ips.list[i]->hash == hash && !strcmp(name, internal_ips.list[i]->string)) {
-				resolved_addr = make_internal_ip(i);
+				data->resolved_addr = make_internal_ip(i);
 				PDEBUG("got cached ip for %s\n", name);
 				goto have_ip;
 			}
@@ -782,8 +774,8 @@ struct hostent *proxy_gethostbyname(const char *name) {
 		}
 	}
 
-	resolved_addr = make_internal_ip(internal_ips.counter);
-	if(resolved_addr == (in_addr_t) - 1)
+	data->resolved_addr = make_internal_ip(internal_ips.counter);
+	if(data->resolved_addr == (in_addr_t) - 1)
 		goto err_plus_unlock;
 
 	l = strlen(name);
@@ -806,73 +798,77 @@ struct hostent *proxy_gethostbyname(const char *name) {
 
 	MUTEX_UNLOCK(&internal_ips_lock);
 
-	strncpy(addr_name, name, sizeof(addr_name));
+	strncpy(data->addr_name, name, sizeof(data->addr_name));
 
-	hostent_space.h_name = addr_name;
-	hostent_space.h_length = sizeof(in_addr_t);
-	return &hostent_space;
+	data->hostent_space.h_name = data->addr_name;
+	data->hostent_space.h_length = sizeof(in_addr_t);
+	return &data->hostent_space;
 
 	err_plus_unlock:
 	MUTEX_UNLOCK(&internal_ips_lock);
 	return NULL;
 }
+
+struct addrinfo_data {
+	struct addrinfo addrinfo_space;
+	struct sockaddr sockaddr_space;
+	char addr_name[256];
+};
+
+void proxy_freeaddrinfo(struct addrinfo *res) {
+	free(res);
+}
+
+
 int proxy_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
+	struct gethostbyname_data ghdata;
+	struct addrinfo_data *space;
 	struct servent *se = NULL;
 	struct hostent *hp = NULL;
-
-	struct sockaddr *sockaddr_space = NULL;
-	struct addrinfo *addrinfo_space = NULL;
+	struct servent se_buf;
+	struct addrinfo *p;
+	char buf[1024];
+	int port;
 
 //      printf("proxy_getaddrinfo node %s service %s\n",node,service);
-	addrinfo_space = malloc(sizeof(struct addrinfo));
-	if(!addrinfo_space)
-		goto err1;
-	sockaddr_space = malloc(sizeof(struct sockaddr));
-	if(!sockaddr_space)
-		goto err2;
-	memset(sockaddr_space, 0, sizeof(*sockaddr_space));
-	memset(addrinfo_space, 0, sizeof(*addrinfo_space));
-	if(node && !inet_aton(node, &((struct sockaddr_in *) sockaddr_space)->sin_addr)) {
-		hp = proxy_gethostbyname(node);
-
+	space = calloc(1, sizeof(struct addrinfo_data));
+	if(!space) goto err1;
+	
+	if(node && !inet_aton(node, &((struct sockaddr_in *) &space->sockaddr_space)->sin_addr)) {
+		hp = proxy_gethostbyname(node, &ghdata);
 		if(hp)
-			memcpy(&((struct sockaddr_in *) sockaddr_space)->sin_addr,
+			memcpy(&((struct sockaddr_in *) &space->sockaddr_space)->sin_addr,
 			       *(hp->h_addr_list), sizeof(in_addr_t));
 		else
-			goto err3;
+			goto err2;
 	}
-	if(service)
-		se = getservbyname(service, NULL);
+	if(service) getservbyname_r(service, NULL, &se_buf, buf, sizeof(buf), &se);
 
-	if(!se) {
-		((struct sockaddr_in *) sockaddr_space)->sin_port = htons(atoi(service ? : "0"));
-	} else
-		((struct sockaddr_in *) sockaddr_space)->sin_port = se->s_port;
+	port = se ? se->s_port : htons(atoi(service ? service : "0"));
+	((struct sockaddr_in *) &space->sockaddr_space)->sin_port = port;
 
-	*res = addrinfo_space;
-	(*res)->ai_addr = sockaddr_space;
+	*res = p = &space->addrinfo_space;
+	assert((size_t)p == (size_t) space);
+	
+	p->ai_addr = &space->sockaddr_space;
 	if(node)
-		strcpy(addr_name, node);
-	(*res)->ai_canonname = addr_name;
-	(*res)->ai_next = NULL;
-	(*res)->ai_family = sockaddr_space->sa_family = AF_INET;
-	(*res)->ai_addrlen = sizeof(*sockaddr_space);
+		strncpy(space->addr_name, node, sizeof(space->addr_name));
+	p->ai_canonname = space->addr_name;
+	p->ai_next = NULL;
+	p->ai_family = space->sockaddr_space.sa_family = AF_INET;
+	p->ai_addrlen = sizeof(space->sockaddr_space);
 
-	if (hints != NULL) {
-		(*res)->ai_socktype = hints->ai_socktype;
-		(*res)->ai_flags = hints->ai_flags;
-		(*res)->ai_protocol = hints->ai_protocol;
+	if(hints) {
+		p->ai_socktype = hints->ai_socktype;
+		p->ai_flags = hints->ai_flags;
+		p->ai_protocol = hints->ai_protocol;
 	} else {
-		(*res)->ai_socktype = 0;
-		(*res)->ai_flags = 0;
-		(*res)->ai_protocol = 0;
+		p->ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG);
 	}
-
+	
 	goto out;
-	err3:
-	free(sockaddr_space);
 	err2:
-	free(addrinfo_space);
+	free(space);
 	err1:
 	return 1;
 	out:

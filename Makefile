@@ -15,7 +15,7 @@ bindir = $(exec_prefix)/bin
 
 SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
-LOBJS = src/core.o src/libproxychains.o
+LOBJS = src/core.o src/common.o src/libproxychains.o
 
 CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror
 LDFLAGS = -shared -fPIC -ldl -lpthread
@@ -43,7 +43,6 @@ LDFLAGS+=$(USER_LDFLAGS) $(MAC_LDFLAGS)
 CXXFLAGS+=$(CCFLAGS) $(USER_CFLAGS) $(MAC_CFLAGS)
 CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\" -DINSTALL_PREFIX=\"$(prefix)\" -DDLL_NAME=\"$(LDSO_PATHNAME)\"
 
-
 all: $(ALL_LIBS) $(ALL_TOOLS)
 
 #install: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(DESTDIR)$(LDSO_PATHNAME)
@@ -51,7 +50,10 @@ install:
 	install -d $(DESTDIR)/$(bindir) $(DESTDIR)/$(libdir) $(DESTDIR)/$(confdir) $(DESTDIR)/$(includedir)
 	install $(INSTALL_FLAGS) 755 $(ALL_TOOLS) $(DESTDIR)/$(bindir)/
 	install $(INSTALL_FLAGS) 644 $(ALL_LIBS) $(DESTDIR)/$(libdir)/
-	install $(INSTALL_FLAGS) 644 src/proxychains.conf $(DESTDIR)/$(confdir)
+
+install-config:
+	install -d $(DESTDIR)/$(confdir)
+	install $(INSTALL_FLAGS) 644 src/proxychains.conf $(DESTDIR)/$(confdir)/
 
 clean:
 	rm -f $(ALL_LIBS)
@@ -65,6 +67,6 @@ $(LDSO_PATHNAME): $(LOBJS)
 	$(CC) $(LDFLAGS) $(LD_SET_SONAME)$(LDSO_PATHNAME) -o $@ $(LOBJS)
 
 $(ALL_TOOLS): $(OBJS)
-	$(CC) src/main.o -o $(PXCHAINS)
+	$(CC) src/main.o src/common.o -o $(PXCHAINS)
 
-.PHONY: all clean install
+.PHONY: all clean install install-config
