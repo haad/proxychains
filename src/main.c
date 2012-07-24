@@ -1,12 +1,4 @@
-/***************************************************************************
-                          main.c  -  description
-
-    begin                : Tue May 14 2002
-    copyright            :  netcreature (C) 2002
-    email                : netcreature@users.sourceforge.net
- ***************************************************************************/
- /*     GPL */
-/***************************************************************************
+/*   (C) 2011, 2012 rofl0r
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -14,6 +6,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+
 #undef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #undef _XOPEN_SOURCE
@@ -38,12 +31,6 @@ static int usage(char **argv) {
 	       "\t-t allows to manually specify a configfile to use\n"
 	       "\tfor example : proxychains telnet somehost.com\n" "More help in README file\n\n", argv[0]);
 	return EXIT_FAILURE;
-}
-
-int check_path(char *path) {
-	if(!path)
-		return 0;
-	return access(path, R_OK) != -1;
 }
 
 static const char *dll_name = DLL_NAME;
@@ -106,44 +93,8 @@ int main(int argc, char *argv[]) {
 		return usage(argv);
 
 	/* check if path of config file has not been passed via command line */
-	if(!path) {
-		// priority 1: env var PROXYCHAINS_CONF_FILE
-		path = getenv(PROXYCHAINS_CONF_FILE_ENV_VAR);
-
-		if(check_path(path))
-			goto have;
-
-		// priority 2; proxychains conf in actual dir
-		path = getcwd(buf, sizeof(buf));
-		snprintf(pbuf, sizeof(pbuf), "%s/%s", path, PROXYCHAINS_CONF_FILE);
-		path = pbuf;
-
-		if(check_path(path))
-			goto have;
-
-		// priority 3; $HOME/.proxychains/proxychains.conf
-		path = getenv("HOME");
-		snprintf(pbuf, sizeof(pbuf), "%s/.proxychains/%s", path, PROXYCHAINS_CONF_FILE);
-		path = pbuf;
-		if(check_path(path))
-			goto have;
-
-		// priority 4: $INSTALL_PREFIX/etc/proxychains.conf
-		snprintf(pbuf, sizeof(pbuf), "%s/%s", INSTALL_PREFIX, PROXYCHAINS_CONF_FILE);
-		path = pbuf;
-		if(check_path(path))
-			goto have;
-
-		// priority 5: /etc/proxychains.conf
-		path = "/etc/proxychains.conf";
-		if(check_path(path))
-			goto have;
-		perror("couldnt find configuration file");
-		return 1;
-	}
-
-	have:
-
+	path = get_config_path(path, pbuf, sizeof(pbuf));
+	
 	if(!quiet)
 		fprintf(stderr, LOG_PREFIX "config file found: %s\n", path);
 

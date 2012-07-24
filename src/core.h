@@ -4,10 +4,8 @@
     begin                : Tue May 14 2002
     copyright          :  netcreature (C) 2002
     email                 : netcreature@users.sourceforge.net
- ***************************************************************************/
-#include <stdint.h>
- /*     GPL */
-/***************************************************************************
+ ***************************************************************************
+ ***************************************************************************
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -15,10 +13,13 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+
+#include <stdint.h>
+
 #ifndef __CORE_HEADER
 #define __CORE_HEADER
 #define BUFF_SIZE 8*1024  // used to read responses from proxies.
-#define     MAX_LOCALNET 1024
+#define     MAX_LOCALNET 64
 
 typedef union {
 	unsigned char octet[4];
@@ -60,7 +61,6 @@ typedef enum {
 	BLOCKED  //  target's port blocked on last proxy in the chain
 } ERR_CODE;
 
-
 typedef enum {
 	HTTP_TYPE,
 	SOCKS4_TYPE,
@@ -99,60 +99,48 @@ typedef struct {
 	char pass[256];
 } proxy_data;
 
-typedef struct {
-	proxy_data *pd;
-	chain_type ct;
-	unsigned int proxy_count;
-	int sock;
-	struct sockaddr addr;
-	int flags;
-} thread_arg;
+int connect_proxy_chain (int sock, ip_type target_ip, unsigned short target_port,
+			 proxy_data * pd, unsigned int proxy_count, chain_type ct,
+			 unsigned int max_chain );
 
-int connect_proxy_chain (
-	int sock,
-	ip_type target_ip,
-	unsigned short target_port,
-	proxy_data * pd,
-	unsigned int proxy_count,
-	chain_type ct,
-	unsigned int max_chain );
-
-int proxychains_write_log(char *str,...);
-struct hostent* proxy_gethostbyname(const char *name);
+void proxychains_write_log(char *str, ...);
 
 typedef int (*connect_t)(int, const struct sockaddr *, socklen_t);
-connect_t true_connect;
-
 typedef struct hostent* (*gethostbyname_t)(const char *);
-gethostbyname_t true_gethostbyname;
-
-typedef int (*getaddrinfo_t)(const char *, const char *,
-		const struct addrinfo *,
-		struct addrinfo **);
-getaddrinfo_t true_getaddrinfo;
-
 typedef int (*freeaddrinfo_t)(struct addrinfo *);
-freeaddrinfo_t true_freeaddrinfo;
-
-typedef int (*getnameinfo_t) (const struct sockaddr *,
-		socklen_t, char *,
-		socklen_t, char *,
-		socklen_t, unsigned int);
-getnameinfo_t true_getnameinfo;
-
 typedef struct hostent *(*gethostbyaddr_t) (const void *, socklen_t, int);
-gethostbyaddr_t true_gethostbyaddr;
 
-int proxy_getaddrinfo(const char *node, const char *service,
-		                const struct addrinfo *hints,
-				                struct addrinfo **res);
+typedef int (*getaddrinfo_t)(const char *, const char *, const struct addrinfo *, 
+			     struct addrinfo **);
 
-struct hostent* proxy_gethostbyname(const char *name);
+typedef int (*getnameinfo_t) (const struct sockaddr *, socklen_t, char *, 
+			      socklen_t, char *, socklen_t, int);
+
+
+extern connect_t true_connect;
+extern gethostbyname_t true_gethostbyname;
+extern getaddrinfo_t true_getaddrinfo;
+extern freeaddrinfo_t true_freeaddrinfo;
+extern getnameinfo_t true_getnameinfo;
+extern gethostbyaddr_t true_gethostbyaddr;
+
+struct gethostbyname_data {
+	struct hostent hostent_space;
+	in_addr_t resolved_addr;
+	char *resolved_addr_p[2];
+	char addr_name[1024 * 8];
+};
+
+struct hostent* proxy_gethostbyname(const char *name, struct gethostbyname_data *data);
+
+int proxy_getaddrinfo(const char *node, const char *service, 
+		      const struct addrinfo *hints, struct addrinfo **res);
+void proxy_freeaddrinfo(struct addrinfo *res);
 
 #ifdef DEBUG
-# define PDEBUG(fmt, args...) fprintf(stderr,"DEBUG:"fmt, ## args)
+# define PDEBUG(fmt, args...) do { fprintf(stderr,"DEBUG:"fmt, ## args); fflush(stderr); } while(0)
 #else
-# define PDEBUG(fmt, args...)
+# define PDEBUG(fmt, args...) do {} while (0)
 #endif
 
 #endif
