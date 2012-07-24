@@ -9,3 +9,5 @@
 libtool
 config.*
 stamp-h
+proxychains4
+*.dylib
