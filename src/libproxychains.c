@@ -164,7 +164,8 @@ open_config_file() {
 
 /* get configuration from config file */
 static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct) {
-	int count = 0, port_n = 0, list = 0;
+	unsigned int count = 0;
+	int port_n = 0, list = 0;
 	char buff[1024], type[1024], host[1024], user[1024];
 	char *env;
 	char local_in_addr_port[32];
@@ -266,7 +267,7 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 						}
 						if(local_in_port[0]) {
 							localnet_addr[num_localnet_addr].port =
-							    (short) atoi(local_in_port);
+							    (unsigned short) atoi(local_in_port);
 						} else {
 							localnet_addr[num_localnet_addr].port = 0;
 						}
@@ -279,7 +280,7 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 					int len;
 					pc = strchr(buff, '=');
 					len = atoi(++pc);
-					proxychains_max_chain = (len ? len : 1);
+					proxychains_max_chain = (unsigned int) (len ? len : 1);
 				} else if(strstr(buff, "quiet_mode")) {
 					proxychains_quiet_mode = 1;
 				} else if(strstr(buff, "proxy_dns")) {

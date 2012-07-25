@@ -62,7 +62,7 @@ uint32_t dalias_hash(char *s0) {
 uint32_t index_from_internal_ip(ip_type internalip) {
 	ip_type tmp = internalip;
 	uint32_t ret;
-	ret = tmp.octet[3] + (tmp.octet[2] << 8) + (tmp.octet[1] << 16);
+	ret = (uint32_t) (tmp.octet[3] + (tmp.octet[2] << 8) + (tmp.octet[1] << 16));
 	ret -= 1;
 	return ret;
 }
@@ -106,7 +106,7 @@ static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout)
 		//printf("Retry %d\n", time_remain);
 		ret = poll(fds, nfsd, time_remain);
 		gettimeofday(&tv, NULL);
-		time_elapsed = ((tv.tv_sec - start_time.tv_sec) * 1000 + (tv.tv_usec - start_time.tv_usec) / 1000);
+		time_elapsed = ((int)(tv.tv_sec - start_time.tv_sec) * 1000 + (int)(tv.tv_usec - start_time.tv_usec) / 1000);
 		//printf("Time elapsed %d\n", time_elapsed);
 		time_remain = timeout - time_elapsed;
 	} while(ret == -1 && errno == EINTR && time_remain > 0);
@@ -118,7 +118,9 @@ static int poll_retry(struct pollfd *fds, nfds_t nfsd, int timeout)
 
 
 static void encode_base_64(char *src, char *dest, int max_len) {
-	int n, l, i;
+	int n, i;
+	size_t l;
+
 	l = strlen(src);
 	max_len = (max_len - 1) / 4;
 	for(i = 0; i < max_len; i++, src += 3, l -= 3) {
@@ -164,11 +166,11 @@ void proxychains_write_log(char *str, ...) {
 	}
 }
 
-static int write_n_bytes(int fd, char *buff, size_t size) {
-	int i = 0;
+static size_t write_n_bytes(int fd, char *buff, size_t size) {
+	size_t i = 0;
 	size_t wrote = 0;
 	for(;;) {
-		i = write(fd, &buff[wrote], size - wrote);
+		i = (size_t) write(fd, &buff[wrote], size - wrote);
 		if(i <= 0)
 			return i;
 		wrote += i;
@@ -177,7 +179,7 @@ static int write_n_bytes(int fd, char *buff, size_t size) {
 	}
 }
 
-static int read_n_bytes(int fd, char *buff, size_t size) {
+static size_t read_n_bytes(int fd, char *buff, size_t size) {
 	int ready;
 	size_t i;
 	struct pollfd pfd[1];
@@ -188,9 +190,9 @@ static int read_n_bytes(int fd, char *buff, size_t size) {
 		pfd[0].revents = 0;
 		ready = poll_retry(pfd, 1, tcp_read_time_out);
 		if(ready != 1 || !(pfd[0].revents & POLLIN) || 1 != read(fd, &buff[i], 1))
-			return -1;
+			return 0;
 	}
-	return (int) size;
+	return size;
 }
 
 static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len) {
@@ -203,7 +205,7 @@ static int timed_connect(int sock, const struct sockaddr *addr, socklen_t len) {
 	fcntl(sock, F_SETFL, O_NONBLOCK);
 	ret = true_connect(sock, addr, len);
 	PDEBUG("\nconnect ret=%d\n", ret);
-	
+
 	if(ret == -1 && errno == EINPROGRESS) {
 		ret = poll_retry(pfd, 1, tcp_connect_time_out);
 		PDEBUG("\npoll ret=%d\n", ret);
@@ -264,7 +266,7 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 		goto err;
 	}
 
-	int len;
+	size_t len;
 	unsigned char buff[BUFF_SIZE];
 	char ip_buf[16];
 	//memset (buff, 0, sizeof(buff));
@@ -298,7 +300,7 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 
 				len = strlen((char *) buff);
 
-				if(len != send(sock, buff, len, 0))
+				if(len != (size_t) send(sock, buff, len, 0))
 					goto err;
 
 				len = 0;
@@ -392,15 +394,15 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 					int c;
 					*cur++ = 1;	// version
 					c = ulen & 0xFF;
-					*cur++ = c;
+					*cur++ = (char)c;
 					memcpy(cur, user, c);
 					cur += c;
 					c = passlen & 0xFF;
-					*cur++ = c;
+					*cur++ = (char)c;
 					memcpy(cur, pass, c);
 					cur += c;
 
-					if((cur - out) != write_n_bytes(sock, out, cur - out))
+					if((size_t)(cur - out) != write_n_bytes(sock, out, (size_t) (cur - out)))
 						goto err;
 
 
@@ -413,7 +415,7 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 							return BLOCKED;
 					}
 				}
-				int buff_iter = 0;
+				size_t buff_iter = 0;
 				buff[buff_iter++] = 5;	// version
 				buff[buff_iter++] = 1;	// connect
 				buff[buff_iter++] = 0;	// reserved
@@ -514,7 +516,7 @@ static proxy_data *select_proxy(select_type how, proxy_data * pd, unsigned int p
 		return NULL;
 	switch (how) {
 		case RANDOMLY:
-			srand(time(NULL));
+			srand((unsigned int)time(NULL));
 			do {
 				k++;
 				i = 0 + (unsigned int) (proxy_count * 1.0 * rand() / (RAND_MAX + 1.0));
@@ -552,8 +554,7 @@ static void release_busy(proxy_data * pd, unsigned int proxy_count) {
 }
 
 static unsigned int calc_alive(proxy_data * pd, unsigned int proxy_count) {
-	unsigned int i;
-	int alive_count = 0;
+	unsigned int i, alive_count = 0;
 	release_busy(pd, proxy_count);
 	for(i = 0; i < proxy_count; i++)
 		if(pd[i].ps == PLAY_STATE)
@@ -820,7 +821,7 @@ void proxy_freeaddrinfo(struct addrinfo *res) {
 }
 
 void proxy_getserverbyname(const char * service, struct servent *se_buf,
-	char * buf, size_t buf_len, struct servent **se_result)
+	__unused char * buf, size_t buf_len, struct servent **se_result)
 {
 
 #ifdef __linux__
@@ -843,7 +844,6 @@ void proxy_getserverbyname(const char * service, struct servent *se_buf,
 
 #endif
 }
-
 
 int proxy_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
 	struct gethostbyname_data ghdata;
@@ -871,7 +871,7 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 		proxy_getserverbyname(service, &se_buf, buf, sizeof(buf), &se);
 
 	port = se ? se->s_port : htons(atoi(service ? service : "0"));
-	((struct sockaddr_in *) &space->sockaddr_space)->sin_port = port;
+	((struct sockaddr_in *) &space->sockaddr_space)->sin_port = (in_port_t)port;
 
 	*res = p = &space->addrinfo_space;
 	assert((size_t)p == (size_t) space);
