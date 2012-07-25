@@ -1,6 +1,21 @@
 ProxyChains version history (public releases)
 ====================
 
+ver 4.1
+       * Mac OS X support, create install script.
+       * thread-safe fixes by @rofl0r
+
+-------------------------------------------------------------------------
+
+ver 4.0
+
+changed:
+       * Add a lot of fixes
+       * localnet-patch
+       * remote-dns
+       * thread-safe
+-------------------------------------------------------------------------
+
 ver 3.1
 
 changed:
