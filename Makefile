@@ -17,7 +17,7 @@ SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
 LOBJS = src/core.o src/common.o src/libproxychains.o
 
-CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror -Wextra -Wunused -Wuninitialized -Wconversion
+CCFLAGS  = -Wall -O0 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror -Wextra -Wunused -Wuninitialized -Wconversion -fno-common
 LDFLAGS = -shared -fPIC -ldl -lpthread
 INC     = 
 PIC     = -fPIC

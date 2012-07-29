@@ -41,11 +41,9 @@ extern internal_ip_lookup_table internal_ips;
 
 #ifdef THREAD_SAFE
 #include <pthread.h>
-pthread_mutex_t internal_ips_lock;
 
-#ifdef __APPLE__
-pthread_mutex_t internal_getsrvbyname_lock;
-#endif
+extern pthread_mutex_t internal_ips_lock;
+extern pthread_mutex_t internal_getsrvbyname_lock;
 
 # define MUTEX_LOCK(x) pthread_mutex_lock(x)
 # define MUTEX_UNLOCK(x) pthread_mutex_unlock(x)
@@ -115,10 +113,10 @@ typedef struct hostent* (*gethostbyname_t)(const char *);
 typedef int (*freeaddrinfo_t)(struct addrinfo *);
 typedef struct hostent *(*gethostbyaddr_t) (const void *, socklen_t, int);
 
-typedef int (*getaddrinfo_t)(const char *, const char *, const struct addrinfo *, 
+typedef int (*getaddrinfo_t)(const char *, const char *, const struct addrinfo *,
 			     struct addrinfo **);
 
-typedef int (*getnameinfo_t) (const struct sockaddr *, socklen_t, char *, 
+typedef int (*getnameinfo_t) (const struct sockaddr *, socklen_t, char *,
 			      socklen_t, char *, socklen_t, int);
 
 
@@ -138,7 +136,7 @@ struct gethostbyname_data {
 
 struct hostent* proxy_gethostbyname(const char *name, struct gethostbyname_data *data);
 
-int proxy_getaddrinfo(const char *node, const char *service, 
+int proxy_getaddrinfo(const char *node, const char *service,
 		      const struct addrinfo *hints, struct addrinfo **res);
 void proxy_freeaddrinfo(struct addrinfo *res);
 

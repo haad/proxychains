@@ -34,10 +34,15 @@
 #include <sys/time.h>
 #include <stdarg.h>
 #include <assert.h>
+
 #ifdef THREAD_SAFE
-#include <pthread.h>
 pthread_mutex_t internal_ips_lock;
-#endif
+
+#ifdef __APPLE__
+pthread_mutex_t internal_getsrvbyname_lock;
+#endif /* __APPLE__ */
+
+#endif /* THREAD_SAFE */
 
 #include "core.h"
 #include "common.h"
@@ -255,7 +260,7 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 		if(!dns_len)
 			goto err;
 	}
-	
+
 	PDEBUG("host dns %s\n", dns_name ? dns_name : "<NULL>");
 
 	size_t ulen = strlen(user);
@@ -617,7 +622,7 @@ int connect_proxy_chain(int sock, ip_type target_ip,
 
 	switch (ct) {
 		case DYNAMIC_TYPE:
-			alive_count = calc_alive(pd, proxy_count);
+			calc_alive(pd, proxy_count);
 			offset = 0;
 			do {
 				if(!(p1 = select_proxy(FIFOLY, pd, proxy_count, &offset)))
@@ -641,7 +646,7 @@ int connect_proxy_chain(int sock, ip_type target_ip,
 			break;
 
 		case STRICT_TYPE:
-			alive_count = calc_alive(pd, proxy_count);
+			calc_alive(pd, proxy_count);
 			offset = 0;
 			if(!(p1 = select_proxy(FIFOLY, pd, proxy_count, &offset))) {
 				PDEBUG("select_proxy failed\n");
@@ -830,19 +835,24 @@ void proxy_getserverbyname(const char * service, struct servent *se_buf,
 
 #ifdef __APPLE__
 	struct servent *se;
+
 #ifdef THREAD_SAFE
 	MUTEX_LOCK(&internal_getsrvbyname_lock);
 #endif
-	if(service)
+	if(service) {
 		se = getservbyname(service, NULL);
-	if (!se)
-		memcpy(se_buf, se, buf_len);
-		*se_result = se_buf;
+
+		if ( se != NULL ) {
+			memcpy(se_buf, se, buf_len);
+			*se_result = se_buf;
+		} else {
+			*se_result = NULL;
+		}
+	}
 #ifdef THREAD_SAFE
 	MUTEX_UNLOCK(&internal_getsrvbyname_lock);
 #endif
-
-#endif
+#endif /* __APPLE__ */
 }
 
 int proxy_getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
