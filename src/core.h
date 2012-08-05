@@ -135,6 +135,8 @@ struct gethostbyname_data {
 };
 
 struct hostent* proxy_gethostbyname(const char *name, struct gethostbyname_data *data);
+void proxy_getservbyname(const char * service, struct servent *se_buf,
+	char * buf, size_t buf_len, struct servent **se_result);
 
 int proxy_getaddrinfo(const char *node, const char *service,
 		      const struct addrinfo *hints, struct addrinfo **res);

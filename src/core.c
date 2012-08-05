@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 #include <sys/types.h>
+#include <sys/cdefs.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -400,11 +401,11 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 					*cur++ = 1;	// version
 					c = ulen & 0xFF;
 					*cur++ = (char)c;
-					memcpy(cur, user, c);
+					memcpy(cur, user, (size_t)c);
 					cur += c;
 					c = passlen & 0xFF;
 					*cur++ = (char)c;
-					memcpy(cur, pass, c);
+					memcpy(cur, pass, (size_t)c);
 					cur += c;
 
 					if((size_t)(cur - out) != write_n_bytes(sock, out, (size_t) (cur - out)))
@@ -825,8 +826,8 @@ void proxy_freeaddrinfo(struct addrinfo *res) {
 	free(res);
 }
 
-void proxy_getserverbyname(const char * service, struct servent *se_buf,
-	__unused char * buf, size_t buf_len, struct servent **se_result)
+void proxy_getservbyname(const char * service, struct servent *se_buf,
+	char * buf, size_t buf_len, struct servent **se_result)
 {
 
 #ifdef __linux__
@@ -836,9 +837,7 @@ void proxy_getserverbyname(const char * service, struct servent *se_buf,
 #ifdef __APPLE__
 	struct servent *se;
 
-#ifdef THREAD_SAFE
 	MUTEX_LOCK(&internal_getsrvbyname_lock);
-#endif
 	if(service) {
 		se = getservbyname(service, NULL);
 
@@ -849,9 +848,7 @@ void proxy_getserverbyname(const char * service, struct servent *se_buf,
 			*se_result = NULL;
 		}
 	}
-#ifdef THREAD_SAFE
 	MUTEX_UNLOCK(&internal_getsrvbyname_lock);
-#endif
 #endif /* __APPLE__ */
 }
 
@@ -878,7 +875,7 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 			goto err2;
 	}
 	if(service)
-		proxy_getserverbyname(service, &se_buf, buf, sizeof(buf), &se);
+		proxy_getservbyname(service, &se_buf, buf, sizeof(buf), &se);
 
 	port = se ? se->s_port : htons(atoi(service ? service : "0"));
 	((struct sockaddr_in *) &space->sockaddr_space)->sin_port = (in_port_t)port;
