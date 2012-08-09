@@ -425,7 +425,11 @@ int getnameinfo(const struct sockaddr *sa,
 	return ret;
 }
 
+#if (defined __linux__) || (defined __APPLE__)
 struct hostent *gethostbyaddr(const void *addr, socklen_t len, int type) {
+#else
+struct hostent *gethostbyaddr(const char *addr, socklen_t len, int type) {
+#endif
 	static char buf[16];
 	static char ipv4[4];
 	static char *list[2];

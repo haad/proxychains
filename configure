@@ -40,6 +40,14 @@ ismac() {
 	uname -s | grep Darwin
 }
 
+isbsd() {
+        uname -s | grep BSD
+}
+
+islinux() {
+        uname -s | grep Linux
+}
+
 while true ; do
 	case $1 in
 	-*) parsearg "$1"; shift;;
@@ -88,8 +96,17 @@ if ismac ; then
 	echo LDSO_SUFFIX=dylib>>config.mak
 	echo MAC_CFLAGS+=-DIS_MAC=1 -arch x86_64 -arch i386 >>config.mak
 	echo MAC_LDFLAGS+=-arch x86_64 -arch i386 >>config.mak
-	echo LD_SET_SONAME=-Wl,-install_name,>>config.mak
+	echo LD_SET_SONAME=-ldl -Wl,-install_name,>>config.mak
 	echo INSTALL_FLAGS=-m>>config.mak
+fi
+
+if islinux ; then 
+    echo LD_SET_SONAME=-ldl
+fi
+
+if isbsd ; then 
+    echo INSTALL_FLAGS=-m>>config.mak
+    echo LD_SET_SONAME=-Wl,-rpath,$libdir -install_name,>>config.mak
 fi
 
 echo done, now run make \&\& make install

@@ -864,15 +864,18 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 
 //      printf("proxy_getaddrinfo node %s service %s\n",node,service);
 	space = calloc(1, sizeof(struct addrinfo_data));
-	if(!space) goto err1;
+	if(!space)
+		return 1;
 
 	if(node && !inet_aton(node, &((struct sockaddr_in *) &space->sockaddr_space)->sin_addr)) {
 		hp = proxy_gethostbyname(node, &ghdata);
-		if(hp)
+		if(hp) {
 			memcpy(&((struct sockaddr_in *) &space->sockaddr_space)->sin_addr,
 			       *(hp->h_addr_list), sizeof(in_addr_t));
-		else
-			goto err2;
+		} else {
+			free(space);
+			return 1;
+		}
 	}
 	if(service)
 		proxy_getservbyname(service, &se_buf, buf, sizeof(buf), &se);
@@ -896,14 +899,12 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 		p->ai_flags = hints->ai_flags;
 		p->ai_protocol = hints->ai_protocol;
 	} else {
+#ifdef BSD
 		p->ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG);
+#else
+		p->ai_flags = (AI_ADDRCONFIG);
+#endif
 	}
 
-	goto out;
-	err2:
-	free(space);
-	err1:
-	return 1;
-	out:
 	return 0;
 }

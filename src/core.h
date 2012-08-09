@@ -102,20 +102,23 @@ typedef struct {
 	char pass[256];
 } proxy_data;
 
-int connect_proxy_chain (int sock, ip_type target_ip, unsigned short target_port,
-			 proxy_data * pd, unsigned int proxy_count, chain_type ct,
-			 unsigned int max_chain );
+int connect_proxy_chain (int, ip_type, unsigned short, proxy_data *, unsigned int,
+    chain_type, unsigned int);
 
-void proxychains_write_log(char *str, ...);
+void proxychains_write_log(char *, ...);
 
 typedef int (*connect_t)(int, const struct sockaddr *, socklen_t);
 typedef struct hostent* (*gethostbyname_t)(const char *);
 typedef int (*freeaddrinfo_t)(struct addrinfo *);
+
+#if (defined __linux__) || (defined __APPLE__)
 typedef struct hostent *(*gethostbyaddr_t) (const void *, socklen_t, int);
+#else
+typedef struct hostent *(*gethostbyaddr_t) (const char *, socklen_t, int);
+#endif
 
 typedef int (*getaddrinfo_t)(const char *, const char *, const struct addrinfo *,
 			     struct addrinfo **);
-
 typedef int (*getnameinfo_t) (const struct sockaddr *, socklen_t, char *,
 			      socklen_t, char *, socklen_t, int);
 
@@ -134,13 +137,10 @@ struct gethostbyname_data {
 	char addr_name[1024 * 8];
 };
 
-struct hostent* proxy_gethostbyname(const char *name, struct gethostbyname_data *data);
-void proxy_getservbyname(const char * service, struct servent *se_buf,
-	char * buf, size_t buf_len, struct servent **se_result);
-
-int proxy_getaddrinfo(const char *node, const char *service,
-		      const struct addrinfo *hints, struct addrinfo **res);
-void proxy_freeaddrinfo(struct addrinfo *res);
+struct hostent* proxy_gethostbyname(const char *, struct gethostbyname_data *);
+void proxy_getservbyname(const char *, struct servent *, char *, size_t, struct servent **);
+int proxy_getaddrinfo(const char *, const char *, const struct addrinfo *, struct addrinfo **);
+void proxy_freeaddrinfo(struct addrinfo *);
 
 #ifdef DEBUG
 # define PDEBUG(fmt, args...) do { fprintf(stderr,"DEBUG:"fmt, ## args); fflush(stderr); } while(0)
