@@ -1,6 +1,12 @@
 ProxyChains version history (public releases)
 ====================
 
+ver 4.2
+	* Introduce BSD support make proxychains available on (NetBSD, FreeBSD ,OpenBSD and DragonFlyBSD)
+	* Update pkgsrc-wip proxychains package to 4.2.0 release and make easy to install and use
+	  proxychains
+-------------------------------------------------------------------------
+
 ver 4.1
        * Mac OS X support, create install script.
        * thread-safe fixes by @rofl0r

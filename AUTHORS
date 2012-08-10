@@ -7,7 +7,7 @@ main.c, remote-dns, thread safety, bugfixes, build system, cleanups
 rofl0r.
 https://github.com/rofl0r/proxychains
 
-localnet, bugfixes, macos x support
+localnet, bugfixes, macos x support, bsd support, packaging
 adam hamsik.
 https://github.com/haad/proxychains
 

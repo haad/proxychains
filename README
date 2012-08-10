@@ -1,4 +1,4 @@
-ProxyChains ver 4.0 README
+ProxyChains ver 4.2.0 README
 ==========================
 
   ProxyChains is a UNIX program, that hooks network-related libc functions
@@ -34,6 +34,17 @@ ProxyChains ver 4.0 README
 
 *** Installation ***
 
+  **** Using release version ****
+  Proxychains-4.2.0 are available with pkgsrc to everyone using it on Linux,
+  NetBSD, FreeBSD, OpenBSD, DragonFlyBSD or Mac OS X. You just need to install
+  pkgsrc-wip repository and run 
+  	make install
+  in a wip/proxychains directory.
+
+  You can find out more about pkgsrc on [www.pkgsrc.org] and about pkgsrc-wip on 
+  [http://pkgsrc-wip.sourceforge.net].
+
+  **** Running Current Source code version ****
   # needs a working C compiler, preferably gcc
   ./configure
   make
