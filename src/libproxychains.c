@@ -296,7 +296,7 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 
 /*******  HOOK FUNCTIONS  *******/
 
-int connect(int sock, const struct sockaddr *addr, unsigned int len) {
+int connect(int sock, const struct sockaddr *addr, socklen_t len) {
 	int socktype = 0, flags = 0, ret = 0;
 	socklen_t optlen = 0;
 	ip_type dest_ip;
