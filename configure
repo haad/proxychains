@@ -100,11 +100,11 @@ if ismac ; then
 	echo INSTALL_FLAGS=-m>>config.mak
 fi
 
-if islinux ; then 
-    echo LD_SET_SONAME=-ldl
+if islinux ; then
+    echo LD_SET_SONAME=-ldl -Wl,-install_name, >>config.mak
 fi
 
-if isbsd ; then 
+if isbsd ; then
     echo INSTALL_FLAGS=-m>>config.mak
     echo LD_SET_SONAME=-Wl,-rpath,$libdir -install_name,>>config.mak
 fi
