@@ -86,25 +86,32 @@ fi
 echo CC?=$CC>config.mak
 [ -z "$CPPFLAGS" ] || echo CPPFLAGS?=$CPPFLAGS>>config.mak
 [ -z "$CFLAGS" ] || echo USER_CFLAGS?=$CFLAGS>>config.mak
+[ -z "$LDFLAGS" ] || echo USER_LDFLAGS?=$LDFLAGS>>config.mak
+
 echo prefix=$prefix>>config.mak
 echo exec_prefix=$exec_prefix>>config.mak
 echo bindir=$bindir>>config.mak
 echo libdir=$libdir>>config.mak
 echo includedir=$includedir>>config.mak
 echo sysconfdir=$sysconfdir>>config.mak
+
 if ismac ; then
 	echo LDSO_SUFFIX=dylib>>config.mak
-	echo MAC_CFLAGS+=-DIS_MAC=1 -arch x86_64 -arch i386 >>config.mak
-	echo MAC_LDFLAGS+=-arch x86_64 -arch i386 >>config.mak
-	echo LD_SET_SONAME=-ldl -Wl,-install_name,>>config.mak
+	echo OS_CFLAGS+=-DIS_MAC=1 -arch x86_64 -arch i386 >>config.mak
+	echo OS_LDFLAGS+=-arch x86_64 -arch i386 -lpthread -ldl>>config.mak
+	echo LD_SET_SONAME=-Wl, -install_name,>>config.mak
 	echo INSTALL_FLAGS=-m>>config.mak
 fi
 
-if islinux ; then 
-    echo LD_SET_SONAME=-ldl
+if islinux ; then
+    #echo OS_CFLAGS=
+    echo OS_LDFLAGS=-pthread -ldl >>config.mak
+    echo LD_SET_SONAME=-Wl,--no-as-needed -install_name, >>config.mak
 fi
 
-if isbsd ; then 
+if isbsd ; then
+    #echo OS_LDFLAGS=
+    #echo OS_CFLAGS
     echo INSTALL_FLAGS=-m>>config.mak
     echo LD_SET_SONAME=-Wl,-rpath,$libdir -install_name,>>config.mak
 fi

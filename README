@@ -37,12 +37,18 @@ ProxyChains ver 4.2.0 README
   **** Using release version ****
   Proxychains-4.2.0 are available with pkgsrc to everyone using it on Linux,
   NetBSD, FreeBSD, OpenBSD, DragonFlyBSD or Mac OS X. You just need to install
-  pkgsrc-wip repository and run 
+  pkgsrc-wip repository and run
   	make install
   in a wip/proxychains directory.
 
-  You can find out more about pkgsrc on [www.pkgsrc.org] and about pkgsrc-wip on 
+  You can find out more about pkgsrc on [www.pkgsrc.org] and about pkgsrc-wip on
   [http://pkgsrc-wip.sourceforge.net].
+
+  **** Installing on Mac OS X with homebrew ****
+  You can install current proxychains on Mac OS X with an homebrew. You have to download unofficial homebrew formula from [https://gist.github.com/3792521] to your BREW_HOME
+  by default /usr/local/Library/Formula/ and run
+
+  brew install proxychains
 
   **** Running Current Source code version ****
   # needs a working C compiler, preferably gcc
@@ -62,7 +68,7 @@ there's a ./configure script though for convenience.
 it also adds support for a config file passed via command line switches/
 environment variables.
 
-Version (3.x) introduces support for DNS resolving through proxy 
+Version (3.x) introduces support for DNS resolving through proxy
 it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
 Auth-types: socks - "user/pass" , http - "basic".
 
@@ -94,12 +100,14 @@ Some cool features:
 Configuration:
 --------------
 
-proxychains looks for config file in following order:
-1)	file listed in environment variable ${PROXYCHAINS_CONF_FILE} or
+proxychains looks for configuration in the following order:
+1)	SOCKS5 proxy port in environment variable ${PROXYCHAINS_SOCKS5}
+	(if set, no further configuration will be searched)
+2)	file listed in environment variable ${PROXYCHAINS_CONF_FILE} or
 	provided as a -f argument to proxychains script or binary.
-2)	./proxychains.conf
-3)	$(HOME)/.proxychains/proxychains.conf
-4)	/etc/proxychains.conf  **
+3)	./proxychains.conf
+4)	$(HOME)/.proxychains/proxychains.conf
+5)	/etc/proxychains.conf  **
 
 **see more in /etc/proxychains.conf
 
@@ -114,7 +122,7 @@ Usage Example:
 
       	$ proxychains -f /etc/proxychains-other.conf targethost2.com
 
-in this example it will use different configuration file then proxychains.conf 
+in this example it will use different configuration file then proxychains.conf
 to connect to targethost2.com host.
 
 Usage Example:
@@ -124,3 +132,10 @@ Usage Example:
 in this example it will resolve targethost.com through proxy(or chained proxies)
 specified by proxychains.conf
 
+Usage Example:
+
+	$ ssh -fN -D 4321 some.example.com
+	$ PROXYCHAINS_SOCKS5=4321 proxychains zsh
+
+in this example, it will run a shell with all traffic proxied through
+OpenSSH's "dynamic proxy" (SOCKS5 proxy) on localhost port 4321.

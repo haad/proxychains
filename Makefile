@@ -17,9 +17,9 @@ SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
 LOBJS = src/core.o src/common.o src/libproxychains.o
 
-CCFLAGS  = -Wall -O2 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror 
-LDFLAGS = -shared -Wl,--no-as-needed -fPIC -pthread -ldl
-INC     = 
+CCFLAGS  = -Wall -O2 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror
+LDFLAGS = -shared -fPIC
+INC     =
 PIC     = -fPIC
 AR      = $(CROSS_COMPILE)ar
 RANLIB  = $(CROSS_COMPILE)ranlib
@@ -37,9 +37,9 @@ ALL_LIBS = $(SHARED_LIBS)
 PXCHAINS = proxychains4
 ALL_TOOLS = $(PXCHAINS)
 
-CCFLAGS+=$(USER_CFLAGS) $(MAC_CFLAGS)
-LDFLAGS+=$(USER_LDFLAGS) $(MAC_LDFLAGS)
-CXXFLAGS+=$(CCFLAGS) $(USER_CFLAGS) $(MAC_CFLAGS)
+CCFLAGS+=$(USER_CFLAGS) $(OS_CFLAGS)
+LDFLAGS+=$(USER_LDFLAGS) $(OS_LDFLAGS)
+CXXFLAGS+=$(CCFLAGS) $(USER_CFLAGS) $(OS_CFLAGS)
 CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\" -DINSTALL_PREFIX=\"$(prefix)\" -DDLL_NAME=\"$(LDSO_PATHNAME)\" -DSYSCONFDIR=\"$(confdir)\"
 
 all: $(ALL_LIBS) $(ALL_TOOLS)

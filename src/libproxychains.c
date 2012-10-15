@@ -72,7 +72,9 @@ pthread_once_t init_once = PTHREAD_ONCE_INIT;
 #endif
 static int init_l = 0;
 
+static void load_default_settings(chain_type *ct);
 static inline void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct);
+static void simple_socks5_env(proxy_data * pd, unsigned int *proxy_count, chain_type * ct);
 
 static void* load_sym(char* symname, void* proxyfunc) {
 
@@ -100,6 +102,9 @@ static void do_init(void) {
 #ifdef __APPLE__
 	MUTEX_INIT(&internal_getsrvbyname_lock, NULL);
 #endif
+
+	/* check for simple SOCKS5 proxy setup */
+	simple_socks5_env(proxychains_pd, &proxychains_proxy_count, &proxychains_ct);
 
 	/* read the config file */
 	get_chain_data(proxychains_pd, &proxychains_proxy_count, &proxychains_ct);
@@ -162,6 +167,19 @@ open_config_file() {
 	return file;
 }
 
+/* default settings common to get_chain_data and simple_socks5_env */
+static void load_default_settings(chain_type *ct) {
+	char *env;
+
+	tcp_read_time_out = 4 * 1000;
+	tcp_connect_time_out = 10 * 1000;
+	*ct = DYNAMIC_TYPE;
+
+	env = getenv(PROXYCHAINS_QUIET_MODE_ENV_VAR);
+	if(env && *env == '1')
+		proxychains_quiet_mode = 1;
+}
+
 /* get configuration from config file */
 static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_type * ct) {
 	unsigned int count = 0;
@@ -175,16 +193,10 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 	if(proxychains_got_chain_data)
 		return;
 
-	//Some defaults
-	tcp_read_time_out = 4 * 1000;
-	tcp_connect_time_out = 10 * 1000;
-	*ct = DYNAMIC_TYPE;
+	load_default_settings(ct);
+
 	env = get_config_path(getenv(PROXYCHAINS_CONF_FILE_ENV_VAR), buff, sizeof(buff));
 	file = fopen(env, "r");
-
-	env = getenv(PROXYCHAINS_QUIET_MODE_ENV_VAR);
-	if(env && *env == '1')
-		proxychains_quiet_mode = 1;
 
 	while(fgets(buff, sizeof(buff), file)) {
 		if(buff[0] != '\n' && buff[strspn(buff, " ")] != '#') {
@@ -294,9 +306,37 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 	proxychains_got_chain_data = 1;
 }
 
+static void simple_socks5_env(proxy_data *pd, unsigned int *proxy_count, chain_type *ct) {
+	char *port_string;
+
+	if(proxychains_got_chain_data)
+		return;
+
+	load_default_settings(ct);
+
+	port_string = getenv(PROXYCHAINS_SOCKS5_ENV_VAR);
+
+	if(!port_string)
+		return;
+
+	memset(pd, 0, sizeof(proxy_data));
+
+	pd[0].ps = PLAY_STATE;
+	pd[0].ip.as_int = (uint32_t) inet_addr("127.0.0.1");
+	pd[0].port = htons((unsigned short) strtol(port_string, NULL, 0));
+	pd[0].pt = SOCKS5_TYPE;
+	proxychains_max_chain = 1;
+
+	if(getenv(PROXYCHAINS_DNS_ENV_VAR))
+		proxychains_resolver = 1;
+
+	*proxy_count = 1;
+	proxychains_got_chain_data = 1;
+}
+
 /*******  HOOK FUNCTIONS  *******/
 
-int connect(int sock, const struct sockaddr *addr, unsigned int len) {
+int connect(int sock, const struct sockaddr *addr, socklen_t len) {
 	int socktype = 0, flags = 0, ret = 0;
 	socklen_t optlen = 0;
 	ip_type dest_ip;
