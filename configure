@@ -99,14 +99,14 @@ if ismac ; then
 	echo LDSO_SUFFIX=dylib>>config.mak
 	echo OS_CFLAGS+=-DIS_MAC=1 -arch x86_64 -arch i386 >>config.mak
 	echo OS_LDFLAGS+=-arch x86_64 -arch i386 -lpthread -ldl>>config.mak
-	echo LD_SET_SONAME=-Wl,-install_name,>>config.mak
+	echo LD_SET_SONAME=-Wl, -install_name,>>config.mak
 	echo INSTALL_FLAGS=-m>>config.mak
 fi
 
 if islinux ; then
     #echo OS_CFLAGS=
     echo OS_LDFLAGS=-pthread -ldl >>config.mak
-    echo LD_SET_SONAME=-Wl,--no-as-needed >>config.mak
+    echo LD_SET_SONAME=-Wl,--no-as-needed -install_name, >>config.mak
 fi
 
 if isbsd ; then
