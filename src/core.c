@@ -722,6 +722,7 @@ int connect_proxy_chain(int sock, ip_type target_ip,
 
 static const ip_type local_host = { {127, 0, 0, 1} };
 
+char hostname[256]; // default maximum length of hostname in linux
 struct hostent *proxy_gethostbyname(const char *name, struct gethostbyname_data* data) {
 	char buff[256];
 	uint32_t i, hash;
@@ -743,6 +744,12 @@ struct hostent *proxy_gethostbyname(const char *name, struct gethostbyname_data*
 		data->resolved_addr = inet_addr(buff);
 		if(data->resolved_addr == (in_addr_t) (-1))
 			data->resolved_addr = (in_addr_t) (local_host.as_int);
+
+		snprintf(hostname,sizeof hostname, "%s", name);
+	    data->hostent_space.h_name = hostname;
+	    data->hostent_space.h_length = sizeof (in_addr_t);
+	    data->hostent_space.h_addrtype = AF_INET;
+
 		return &data->hostent_space;
 	}
 
@@ -809,6 +816,8 @@ struct hostent *proxy_gethostbyname(const char *name, struct gethostbyname_data*
 
 	data->hostent_space.h_name = data->addr_name;
 	data->hostent_space.h_length = sizeof(in_addr_t);
+	data->hostent_space.h_addrtype = AF_INET;
+
 	return &data->hostent_space;
 
 	err_plus_unlock:
