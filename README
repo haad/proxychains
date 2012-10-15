@@ -100,12 +100,14 @@ Some cool features:
 Configuration:
 --------------
 
-proxychains looks for config file in following order:
-1)	file listed in environment variable ${PROXYCHAINS_CONF_FILE} or
+proxychains looks for configuration in the following order:
+1)	SOCKS5 proxy port in environment variable ${PROXYCHAINS_SOCKS5}
+	(if set, no further configuration will be searched)
+2)	file listed in environment variable ${PROXYCHAINS_CONF_FILE} or
 	provided as a -f argument to proxychains script or binary.
-2)	./proxychains.conf
-3)	$(HOME)/.proxychains/proxychains.conf
-4)	/etc/proxychains.conf  **
+3)	./proxychains.conf
+4)	$(HOME)/.proxychains/proxychains.conf
+5)	/etc/proxychains.conf  **
 
 **see more in /etc/proxychains.conf
 
@@ -130,3 +132,10 @@ Usage Example:
 in this example it will resolve targethost.com through proxy(or chained proxies)
 specified by proxychains.conf
 
+Usage Example:
+
+	$ ssh -fN -D 4321 some.example.com
+	$ PROXYCHAINS_SOCKS5=4321 proxychains zsh
+
+in this example, it will run a shell with all traffic proxied through
+OpenSSH's "dynamic proxy" (SOCKS5 proxy) on localhost port 4321.
