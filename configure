@@ -104,9 +104,8 @@ if ismac ; then
 fi
 
 if islinux ; then
-    #echo OS_CFLAGS=
     echo OS_LDFLAGS=-pthread -ldl -Wl,--no-as-needed>>config.mak
-    echo LD_SET_SONAME=-install_name, >>config.mak
+    echo LD_SET_SONAME=-Wl,-soname= >>config.mak
 fi
 
 if isbsd ; then
