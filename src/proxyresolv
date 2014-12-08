@@ -2,7 +2,7 @@
 # This script is called by proxychains to resolve DNS names
 
 # DNS server used to resolve names
-DNS_SERVER=8.8.8.8
+DNS_SERVER=208.67.222.222
 
 
 if [ $# = 0 ] ; then
@@ -17,4 +17,4 @@ if [[ "$?" -eq "0" ]]; then
 fi
 
 export LD_PRELOAD=libproxychains.so
-dig $1 @$DNS_SERVER +tcp | awk '/A.+[0-9]+\.[0-9]+\.[0-9]/{print $5;}'
+drill $1 @$DNS_SERVER -t | awk '/A.+[0-9]+\.[0-9]+\.[0-9]/{print $5;}'
