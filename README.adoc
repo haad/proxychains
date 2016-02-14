@@ -39,13 +39,13 @@ pkgsrc-wip repository and run
   make install
 in a wip/proxychains directory.
 
-You can find out more about pkgsrc on [www.pkgsrc.org] and about pkgsrc-wip on
+You can find out more about pkgsrc on link:www.pkgsrc.org[pkgsrc]]and about pkgsrc-wip on
 link:http://pkgsrc-wip.sourceforge.net[Pkgsrc-wip homepage]
 
 === Installing on Mac OS X with homebrew
 
 You can install current proxychains on Mac OS X with an homebrew. You have to
-download unofficial homebrew formula from [https://gist.github.com/3792521]
+download unofficial link:https://gist.github.com/3792521[homebrew formula] from
 to your BREW_HOME by default /usr/local/Library/Formula/ and run
 
 ----
