@@ -1,0 +1,10 @@
+# Enable C support
+language: c
+# Compiler selection
+compiler:
+  - clang
+  - gcc
+# Build steps
+script:
+  - ./configure
+  - make
