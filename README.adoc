@@ -14,7 +14,7 @@ the same dynamic linker (i.e. same libc)
 
 when a process forks, does a DNS lookup in the child, and then uses
 the ip in the parent, the corresponding ip mapping will not be found.
-this is because the fork can't write back into the parents mapping table.
+This is because the fork can't write back into the parents mapping table.
 IRSSI shows this behaviour, so you have to pass the resolved ip address
 to it. (you can use the proxyresolv script (requires "dig") to do so)
 
