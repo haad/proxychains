@@ -15,7 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 #include <sys/types.h>
-#include <sys/cdefs.h>
+//#include <sys/cdefs.h>
 
 #include <stdio.h>
 #include <unistd.h>
