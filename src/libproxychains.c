@@ -308,21 +308,27 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 
 static void simple_socks5_env(proxy_data *pd, unsigned int *proxy_count, chain_type *ct) {
 	char *port_string;
+        char *host_string;
 
 	if(proxychains_got_chain_data)
 		return;
 
 	load_default_settings(ct);
 
-	port_string = getenv(PROXYCHAINS_SOCKS5_ENV_VAR);
+	port_string = getenv(PROXYCHAINS_SOCKS5_PORT_ENV_VAR);
 
 	if(!port_string)
 		return;
+        
+        host_string = getenv(PROXYCHAINS_SOCKS5_HOST_ENV_VAR);
+        
+        if(!host_string)
+            host_string = "127.0.0.1";
 
-	memset(pd, 0, sizeof(proxy_data));
+        memset(pd, 0, sizeof(proxy_data));
 
 	pd[0].ps = PLAY_STATE;
-	pd[0].ip.as_int = (uint32_t) inet_addr("127.0.0.1");
+	pd[0].ip.as_int = (uint32_t) inet_addr(host_string);
 	pd[0].port = htons((unsigned short) strtol(port_string, NULL, 0));
 	pd[0].pt = SOCKS5_TYPE;
 	proxychains_max_chain = 1;
