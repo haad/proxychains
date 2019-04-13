@@ -2,7 +2,12 @@
 # This script is called by proxychains to resolve DNS names
 
 # DNS server used to resolve names
-DNS_SERVER=208.67.222.222
+
+if [[ -z "$PROXY_DNS_SERVER" ]] ; then
+    DNS_SERVER=208.67.222.222   # OpenDNS
+else
+    DNS_SERVER=$PROXY_DNS_SERVER
+fi
 
 
 if [ $# = 0 ] ; then

@@ -160,3 +160,13 @@ $ PROXYCHAINS_SOCKS5=4321 proxychains zsh
 
 in this example, it will run a shell with all traffic proxied through
 OpenSSH's "dynamic proxy" (SOCKS5 proxy) on localhost port 4321.
+
+=== Usage Example:
+
+----
+$ export PROXY_DNS_SERVER=8.8.8.8
+$ proxychains telnet targethost.com
+----
+
+in this example, it will telnet to targethost.com using the 8.8.8.8
+nameserver supplied by the user through the PROXY_DNS_SERVER
