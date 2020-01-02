@@ -16,8 +16,9 @@ bindir = $(exec_prefix)/bin
 SRCS = $(sort $(wildcard src/*.c))
 OBJS = $(SRCS:.c=.o)
 LOBJS = src/core.o src/common.o src/libproxychains.o
+DEPS = $(OBJS:.o=.d)
 
-CCFLAGS  = -Wall -O2 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror
+CCFLAGS  = -MD -Wall -O2 -g -std=c99 -D_GNU_SOURCE -pipe -DTHREAD_SAFE -Werror
 LDFLAGS = -shared -fPIC
 INC     =
 PIC     = -fPIC
@@ -58,6 +59,7 @@ clean:
 	rm -f $(ALL_LIBS)
 	rm -f $(ALL_TOOLS)
 	rm -f $(OBJS)
+	rm -f $(DEPS)
 
 %.o: %.c
 	$(CC) $(CCFLAGS) $(CFLAGS_MAIN) $(INC) $(PIC) -c -o $@ $<
@@ -69,3 +71,5 @@ $(ALL_TOOLS): $(OBJS)
 	$(CC) src/main.o src/common.o -o $(PXCHAINS)
 
 .PHONY: all clean install install-config
+
+-include $(DEPS)
