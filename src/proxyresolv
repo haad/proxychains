@@ -2,8 +2,12 @@
 # This script is called by proxychains to resolve DNS names
 
 # DNS server used to resolve names
-DNS_SERVER=208.67.222.222
 
+if [ -z "$PROXY_DNS_SERVER" ] ; then
+    DNS_SERVER=208.67.222.222   # OpenDNS
+else
+    DNS_SERVER=$PROXY_DNS_SERVER
+fi
 
 if [ $# = 0 ] ; then
 	echo "	usage:"
@@ -12,7 +16,7 @@ if [ $# = 0 ] ; then
 fi
 
 awk 'BEGIN{ARGC=0} {for(i=2;i<=NF;i++){if($i==ARGV[1] && $1!~":"){print $1;found=1}} } END{exit found?0:1}' "$1" </etc/hosts
-if [[ "$?" -eq "0" ]]; then
+if [ "$?" -eq "0" ]; then
         exit
 fi
 
