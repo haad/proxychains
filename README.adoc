@@ -103,7 +103,7 @@ it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
   dynamic order (smart exclude dead proxies from chain)
 * You can use it with any TCP client application, even network scanners
   yes, yes - you can make portscan via proxy (or chained proxies)
-  for example with Nmap scanner by fyodor (www.insecire.org/nmap).
+  for example with Nmap scanner by fyodor (www.insecure.org/nmap).
 ----
   proxychains nmap -sT -PO -p 80 -iR  (find some webservers through proxy)
 ----
