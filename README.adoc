@@ -49,7 +49,7 @@ download unofficial link:https://gist.github.com/3792521[homebrew formula] from
 to your BREW_HOME by default /usr/local/Library/Formula/ and run
 
 ----
-$ brew install proxychains
+$ brew install proxychains-ng
 ----
 
 === Running Current Source code version
