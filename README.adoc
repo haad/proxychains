@@ -39,7 +39,7 @@ pkgsrc-wip repository and run
   make install
 in a wip/proxychains directory.
 
-You can find out more about pkgsrc on link:www.pkgsrc.org[pkgsrc] and about pkgsrc-wip on
+You can find out more about pkgsrc on link:http://www.pkgsrc.org[pkgsrc] and about pkgsrc-wip on
 link:http://pkgsrc-wip.sourceforge.net[Pkgsrc-wip homepage]
 
 === Installing on Mac OS X with homebrew
