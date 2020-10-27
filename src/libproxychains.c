@@ -221,6 +221,8 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 
 				if(!strcmp(type, "http")) {
 					pd[count].pt = HTTP_TYPE;
+				} else if(!strcmp(type, "raw")) {
+					pd[count].pt = RAW_TYPE;
 				} else if(!strcmp(type, "socks4")) {
 					pd[count].pt = SOCKS4_TYPE;
 				} else if(!strcmp(type, "socks5")) {

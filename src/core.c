@@ -278,6 +278,10 @@ static int tunnel_to(int sock, ip_type ip, unsigned short port, proxy_type pt, c
 	//memset (buff, 0, sizeof(buff));
 
 	switch (pt) {
+		case RAW_TYPE: {
+			return SUCCESS;
+		}
+		break;
 		case HTTP_TYPE:{
 				if(!dns_len) {
 					inet_ntop(AF_INET, &ip.octet[0], ip_buf, sizeof(ip_buf));
