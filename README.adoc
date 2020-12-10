@@ -1,4 +1,4 @@
-= ProxyChains ver. 4.2.0 README
+= ProxyChains ver. 4.3.0 README
 
 image:https://travis-ci.org/haad/proxychains.svg?branch=master["Build Status", link="https://travis-ci.org/haad/proxychains"]
 
@@ -33,7 +33,7 @@ is currently the only known affected program.
 
 === Using release version
 
-*Proxychains-4.2.0* are available with pkgsrc to everyone using it on _Linux_,
+*Proxychains-4.3.0* are available with pkgsrc to everyone using it on _Linux_,
 _NetBSD_, _FreeBSD_, _OpenBSD_, _DragonFlyBSD_ or _Mac OS X_. You just need to install
 pkgsrc-wip repository and run
   make install
