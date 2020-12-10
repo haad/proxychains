@@ -67,6 +67,7 @@ typedef enum {
 
 typedef enum {
 	HTTP_TYPE,
+	RAW_TYPE,
 	SOCKS4_TYPE,
 	SOCKS5_TYPE
 } proxy_type;
