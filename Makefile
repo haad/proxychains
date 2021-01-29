@@ -26,7 +26,7 @@ AR      = $(CROSS_COMPILE)ar
 RANLIB  = $(CROSS_COMPILE)ranlib
 
 LDSO_SUFFIX = so
-LD_SET_SONAME = -Wl,-soname=
+LD_SET_SONAME = -Wl
 INSTALL_FLAGS = -D -m
 
 -include config.mak

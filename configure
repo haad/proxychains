@@ -97,9 +97,10 @@ echo sysconfdir=$sysconfdir>>config.mak
 
 if ismac ; then
 	echo LDSO_SUFFIX=dylib>>config.mak
-	echo OS_CFLAGS+=-DIS_MAC=1 -arch x86_64 -arch i386 >>config.mak
-	echo OS_LDFLAGS+=-arch x86_64 -arch i386 -lpthread -ldl -Wl,>>config.mak
-	echo LD_SET_SONAME=-install_name,>>config.mak
+	echo OS_CFLAGS+=-DIS_MAC=1 -arch x86_64 >>config.mak
+	echo OS_LDFLAGS+=-arch x86_64 -lpthread -ldl -Wl,>>config.mak
+	echo LD_SET_SONAME=-Wl,-install_name,>>config.mak
+	echo LDSO_SUFFIX=dylib>>config.mak
 	echo INSTALL_FLAGS=-m>>config.mak
 fi
 
@@ -116,4 +117,5 @@ if isbsd ; then
 fi
 
 echo done, now run make \&\& make install
+
 
