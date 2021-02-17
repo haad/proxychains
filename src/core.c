@@ -829,7 +829,7 @@ struct hostent *proxy_gethostbyname(const char *name, struct gethostbyname_data*
 
 	MUTEX_UNLOCK(&internal_ips_lock);
 
-	strncpy(data->addr_name, name, sizeof(data->addr_name));
+	strncpy(data->addr_name, name, sizeof(data->addr_name) - 1);
 
 	data->hostent_space.h_name = data->addr_name;
 	data->hostent_space.h_length = sizeof(in_addr_t);
@@ -914,7 +914,7 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 
 	p->ai_addr = &space->sockaddr_space;
 	if(node)
-		strncpy(space->addr_name, node, sizeof(space->addr_name));
+		strncpy(space->addr_name, node, sizeof(space->addr_name) - 1);
 	p->ai_canonname = space->addr_name;
 	p->ai_next = NULL;
 	p->ai_family = space->sockaddr_space.sa_family = AF_INET;
