@@ -335,14 +335,14 @@ static void get_chain_data(proxy_data * pd, unsigned int *proxy_count, chain_typ
 
 						if(dnat_orig_port[0]) {
 							dnats[num_dnats].orig_port =
-							    (short) atoi(dnat_orig_port);
+							    (unsigned short) atoi(dnat_orig_port);
 						} else {
 							dnats[num_dnats].orig_port = 0;
 						}
 
 						if(dnat_new_port[0]) {
 							dnats[num_dnats].new_port =
-							    (short) atoi(dnat_new_port);
+							    (unsigned short) atoi(dnat_new_port);
 						} else {
 							dnats[num_dnats].new_port = 0;
 						}
