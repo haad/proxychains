@@ -80,7 +80,7 @@ if [ -z "$CC" ] ; then
 fi
 
 if [ $develflg -eq 1 ]; then
-	CFLAGS="-Wextra -Wunused -Wuninitialized -Wconversion -fno-common -g -O0"
+	CFLAGS="-Wextra -Wunused -Wuninitialized -Wconversion -fno-common -g -O0 -DDEBUG"
 fi
 
 echo CC?=$CC>config.mak

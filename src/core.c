@@ -528,7 +528,7 @@ unsigned int get_rand_int(unsigned int range){
 	return (randval % range);
     } else {
 	srand((unsigned int)time(NULL));
-	return (rand() % range);
+	return ((unsigned int)rand() % range);
     }
 }
 
@@ -906,7 +906,7 @@ int proxy_getaddrinfo(const char *node, const char *service, const struct addrin
 	if(service)
 		proxy_getservbyname(service, &se_buf, buf, sizeof(buf), &se);
 
-	port = se ? se->s_port : htons(atoi(service ? service : "0"));
+	port = se ? se->s_port : htons((uint16_t)atoi(service ? service : "0"));
 	((struct sockaddr_in *) &space->sockaddr_space)->sin_port = (in_port_t)port;
 
 	*res = p = &space->addrinfo_space;
