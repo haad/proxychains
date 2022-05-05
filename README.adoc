@@ -114,8 +114,8 @@ it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
 
 proxychains looks for configuration in the following order:
 
-* SOCKS5 proxy port in environment variable ${PROXYCHAINS_SOCKS5}
-  (if set, no further configuration will be searched)
+* SOCKS5 proxy host ip and port in environment variable ${PROXYCHAINS_SOCKS5_HOST} ${PROXYCHAINS_SOCKS5_PORT}
+  (if ${PROXYCHAINS_SOCKS5_PORT} is set, no further configuration will be searched. if ${PROXYCHAINS_SOCKS5_HOST} isn't set, host ip will become "127.0.0.1")
 * file listed in environment variable ${PROXYCHAINS_CONF_FILE} or
   provided as a -f argument to proxychains script or binary.
 * ./proxychains.conf
@@ -155,7 +155,7 @@ specified by *proxychains.conf*
 
 ----
 $ ssh -fN -D 4321 some.example.com
-$ PROXYCHAINS_SOCKS5=4321 proxychains zsh
+$ PROXYCHAINS_SOCKS5_HOST=127.0.0.1 PROXYCHAINS_SOCKS5_PORT=4321 proxychains zsh
 ----
 
 in this example, it will run a shell with all traffic proxied through
