@@ -20,7 +20,7 @@ to it. (you can use the proxyresolv script (requires "dig") to do so)
 
 this means that you can't currently use tor onion urls for irssi.
 to solve this issue, an external data store (file, pipe, ...) has to
-manage the dns <-> ip mapping. of course there has to be proper locking.
+manage the dns \<\-> ip mapping. of course there has to be proper locking.
 shm_open, mkstemp, are possible candidates for a file based approach,
 the other option is to spawn some kind of server process that manages the
 map lookups. since connect() etc are hooked, this must not be a TCP server.
@@ -95,7 +95,7 @@ it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
 
 * This program can mix different proxy types in the same chain
 ----
-  like: your_host <-->socks5 <--> http <--> socks4 <--> target_host
+  like: your_host <--> socks5 <--> http <--> socks4 <--> target_host
 ----
 * Different chaining options supported
   random order from the list ( user defined length of chain ).
