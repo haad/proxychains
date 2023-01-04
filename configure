@@ -4,83 +4,83 @@ prefix=/usr/local
 develflg=0
 
 usage() {
-	echo "supported arguments"
-	echo "--prefix=/path 		default: $prefix"
-	echo "--exec_prefix=/path	default: $prefix/bin"
-	echo "--bindir=/path		default: $prefix/bin"
-	echo "--libdir=/path		default: $prefix/lib"
-	echo "--includedir=/path	default: $prefix/include"
-	echo "--sysconfdir=/path	default: $prefix/etc"
-	echo "--devel				default:no (set development mode)"
-	echo "--help : show this text"
-	exit 1
+    echo "supported arguments"
+    echo "--prefix=/path 		default: $prefix"
+    echo "--exec_prefix=/path	default: $prefix/bin"
+    echo "--bindir=/path		default: $prefix/bin"
+    echo "--libdir=/path		default: $prefix/lib"
+    echo "--includedir=/path	default: $prefix/include"
+    echo "--sysconfdir=/path	default: $prefix/etc"
+    echo "--devel				default:no (set development mode)"
+    echo "--help : show this text"
+    exit 1
 }
 
 spliteq() {
-	arg=$1
-	echo "${arg#*=}"
-	#alternatives echo "$arg" | cut -d= -f2-
-	# or echo "$arg" | sed 's/[^=]*=//'
+    arg=$1
+    echo "${arg#*=}"
+    #alternatives echo "$arg" | cut -d= -f2-
+    # or echo "$arg" | sed 's/[^=]*=//'
 }
 
 parsearg() {
-	case "$1" in
-	--prefix=*) prefix=`spliteq $1`;;
-	--exec_prefix=*) exec_prefix=`spliteq $1`;;
-	--bindir=*) bindir=`spliteq $1`;;
-	--libdir=*) libdir=`spliteq $1`;;
-	--includedir=*) includedir=`spliteq $1`;;
-	--sysconfdir=*) sysconfdir=`spliteq $1`;;
-	--devel) develflg=1;;
-	--help) usage;;
-	esac
+    case "$1" in
+        --prefix=*) prefix=`spliteq $1`;;
+        --exec_prefix=*) exec_prefix=`spliteq $1`;;
+        --bindir=*) bindir=`spliteq $1`;;
+        --libdir=*) libdir=`spliteq $1`;;
+        --includedir=*) includedir=`spliteq $1`;;
+        --sysconfdir=*) sysconfdir=`spliteq $1`;;
+        --devel) develflg=1;;
+        --help) usage;;
+    esac
 }
 
 ismac() {
-	uname -s | grep Darwin
+    uname -s | grep Darwin
 }
 
 isbsd() {
-        uname -s | grep BSD
+    uname -s | grep BSD
 }
 
 islinux() {
-        uname -s | grep Linux
+    uname -s | grep Linux
 }
 
 while true ; do
-	case $1 in
-	-*) parsearg "$1"; shift;;
-	*) break ;;
-	esac
+    case $1 in
+        -*) parsearg "$1"; shift;;
+        *) break ;;
+    esac
 done
 
 if [ -z "$exec_prefix" ] ; then
-	exec_prefix=$prefix
+    exec_prefix=$prefix
 fi
 
 if [ -z "$libdir" ] ; then
-	libdir=$prefix/lib
+    libdir=$prefix/lib
 fi
 
 if [ -z "$includedir" ] ; then
-	includedir=$prefix/include
+    includedir=$prefix/include
 fi
 
 if [ -z "$sysconfdir" ] ; then
-	sysconfdir=$prefix/etc
+    sysconfdir=$prefix/etc
 fi
 
 if [ -z "$bindir" ] ; then
-	bindir=$exec_prefix/bin
+    bindir=$exec_prefix/bin
 fi
 
 if [ -z "$CC" ] ; then
-	CC=cc
+    CC=cc
 fi
 
 if [ $develflg -eq 1 ]; then
-	CFLAGS="-Wextra -Wunused -Wuninitialized -Wconversion -fno-common -g -O0 -DDEBUG"
+    CFLAGS="-Wextra -Wunused -Wuninitialized -Wconversion -fno-common -g -O0 -DDEBUG"
 fi
 
 echo CC?=$CC>config.mak
@@ -96,12 +96,13 @@ echo includedir=$includedir>>config.mak
 echo sysconfdir=$sysconfdir>>config.mak
 
 if ismac ; then
-	echo LDSO_SUFFIX=dylib>>config.mak
-	echo OS_CFLAGS+=-DIS_MAC=1 -arch x86_64 >>config.mak
-	echo OS_LDFLAGS+=-arch x86_64 -lpthread -ldl -Wl,>>config.mak
-	echo LD_SET_SONAME=-Wl,-install_name,>>config.mak
-	echo LDSO_SUFFIX=dylib>>config.mak
-	echo INSTALL_FLAGS=-m>>config.mak
+    arch=`uname -m`
+    echo LDSO_SUFFIX=dylib>>config.mak
+    echo OS_CFLAGS+=-DIS_MAC=1 -arch $arch>>config.mak
+    echo OS_LDFLAGS+=-arch $arch -lpthread -ldl -Wl,>>config.mak
+    echo LD_SET_SONAME=-Wl,-install_name,>>config.mak
+    echo LDSO_SUFFIX=dylib>>config.mak
+    echo INSTALL_FLAGS=-m>>config.mak
 fi
 
 if islinux ; then
@@ -117,5 +118,3 @@ if isbsd ; then
 fi
 
 echo done, now run make \&\& make install
-
-
