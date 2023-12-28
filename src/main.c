@@ -28,6 +28,7 @@
 static int usage(char **argv) {
 	printf( "\nProxychains4: %d.%d.%d\n"
 			"Usage:\t%s -q -f config_file program_name [arguments]\n"
+			"\t-v print version and exit\n"
 	       	"\t-q makes proxychains quiet - this overrides the config setting\n"
 	       	"\t-f allows to manually specify a configfile to use\n"
 	       	"\n\tfor example : proxychains telnet somehost.com\n"
@@ -80,6 +81,10 @@ int main(int argc, char *argv[]) {
 			if(argv[start_argv][1] == 'q') {
 				quiet = 1;
 				start_argv++;
+			} else if(argv[start_argv][1] == 'v') {
+				printf("Proxychains4 version: %d.%d.%d\n", PROXYCHAINS_VERSION_MAJOR, PROXYCHAINS_VERSION_MINOR, PROXYCHAINS_VERSION_BUGFIX);
+				exit(EXIT_SUCCESS);
+
 			} else if(argv[start_argv][1] == 'f') {
 
 				if(start_argv + 1 < argc)
@@ -121,7 +126,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(!prefix) {
-		fprintf(stderr, "couldnt locate %s\n", dll_name);
+		fprintf(stderr, "couldn't locate %s\n", dll_name);
 		return EXIT_FAILURE;
 	}
 

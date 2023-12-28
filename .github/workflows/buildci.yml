@@ -21,6 +21,7 @@ jobs:
       run: make
 
     - name: Run Proxychains
-      run: ./proxychains4
+      run: ./proxychains4 -v
+
 
 
