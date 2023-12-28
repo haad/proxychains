@@ -7,21 +7,31 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-
+  build-linux:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: configure
-      run: ./configure
+      - name: configure
+        run: ./configure
 
-    - name: Build Proxychains
-      run: make
+      - name: Build Proxychains
+        run: make
 
-    - name: Run Proxychains
-      run: ./proxychains4 -v
+      - name: Run Proxychains
+        run: ./proxychains4 -v
+  build-macos:
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v3
 
+      - name: configure
+        run: ./configure
+
+      - name: Build Proxychains
+        run: make
+
+      - name: Run Proxychains
+        run: ./proxychains4 -v
 
 
