@@ -1,7 +1,11 @@
 ProxyChains ver 4.0 TODO
 ===================
 
-	
-   hooks for reentrant dns functions, i.e. gethostbyaddr_r
+- hooks for reentrant dns functions, i.e. gethostbyaddr_r
+- shadowsocks support #133
+- proxy change according to attempts #156
+
+
+
 
 

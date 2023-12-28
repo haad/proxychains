@@ -17,6 +17,10 @@ jobs:
     - name: configure
       run: ./configure
 
-    - name: Install dependencies
+    - name: Build Proxychains
       run: make
+
+    - name: Run Proxychains
+      run: ./proxychains4
+
 
