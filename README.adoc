@@ -1,6 +1,9 @@
 = ProxyChains ver. 4.3.0 README
+:uri-build-status: https://github.com/haad/proxychains/actions/workflows/buildci.yml/badge.svg
 
-image:https://travis-ci.org/haad/proxychains.svg?branch=master["Build Status", link="https://travis-ci.org/haad/proxychains"]
+
+image:{img-build-status}[Build Status Badge,link={uri-build-status}]
+
 
 ProxyChains is a UNIX program, that hooks network-related libc functions
 in dynamically linked programs via a preloaded DLL and redirects the
