@@ -27,13 +27,10 @@ PIC     = -fPIC
 AR      = $(CROSS_COMPILE)ar
 RANLIB  = $(CROSS_COMPILE)ranlib
 
-LDSO_SUFFIX = so
 LD_SET_SONAME = -Wl
 INSTALL_FLAGS = -D -m
 
 -include config.mak
-
-LDSO_PATHNAME = libproxychains4.$(LDSO_SUFFIX)
 
 SHARED_LIBS = $(LDSO_PATHNAME)
 ALL_LIBS = $(SHARED_LIBS)
@@ -44,6 +41,16 @@ CCFLAGS+=$(USER_CFLAGS) $(OS_CFLAGS)
 LDFLAGS+=$(USER_LDFLAGS) $(OS_LDFLAGS)
 CXXFLAGS+=$(CCFLAGS) $(USER_CFLAGS) $(OS_CFLAGS)
 CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\" -DINSTALL_PREFIX=\"$(prefix)\" -DDLL_NAME=\"$(LDSO_PATHNAME)\" -DSYSCONFDIR=\"$(confdir)\"
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    LDSO_SUFFIX = so
+endif
+ifeq ($(UNAME_S),Darwin)
+    LDSO_SUFFIX = dylib
+endif
+LDSO_PATHNAME = libproxychains4.$(LDSO_SUFFIX)
+
 
 all: $(ALL_LIBS) $(ALL_TOOLS)
 

@@ -4,7 +4,7 @@ echo "ProxyChains-4.0 (https://github.com/haad/proxychains)"
 usage() {
 
 	echo "	usage:"
-	echo "	$0 [hq] [-f config-file] <prog> [args]"
+	echo "	$0 [hqv] [-f config-file] <prog> [args]"
 	echo "		-q make proxychains quiet"
 	exit
 }

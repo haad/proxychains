@@ -22,11 +22,10 @@ jobs:
         run: ./proxychains4 -v
 
       - name: Run tests
-        run: ./proxychains4 -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
+        run: ./src/proxychains -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
 
       - name: Run tests
-        run: ./proxychains4 -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
-
+        run: ./src/proxychains -f dist/proxychains.conf ping -t 1 sme.sk
   build-macos:
     runs-on: macos-latest
     steps:
@@ -42,6 +41,9 @@ jobs:
         run: ./proxychains4 -v
 
       - name: Run tests
-        run: ./proxychains4 -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
+        run: ./src/proxychains -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
+
+      - name: Run tests
+        run: ./src/proxychains -f dist/proxychains.conf ping -t 1 sme.sk
 
 
