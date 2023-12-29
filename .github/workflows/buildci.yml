@@ -20,6 +20,13 @@ jobs:
 
       - name: Run Proxychains
         run: ./proxychains4 -v
+
+      - name: Run tests
+        run: ./proxychains4 -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
+
+      - name: Run tests
+        run: ./proxychains4 -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
+
   build-macos:
     runs-on: macos-latest
     steps:
@@ -33,5 +40,8 @@ jobs:
 
       - name: Run Proxychains
         run: ./proxychains4 -v
+
+      - name: Run tests
+        run: ./proxychains4 -f dist/proxychains.conf curl -o /dev/null -v https://sme.sk
 
 

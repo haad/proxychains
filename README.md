@@ -1,8 +1,6 @@
-= ProxyChains ver. 4.3.0 README
-:uri-build-status: https://github.com/haad/proxychains/actions/workflows/buildci.yml/badge.svg
+# ProxyChains ver. 4.3.0 README
 
-
-image:{img-build-status}[Build Status Badge,link={uri-build-status}]
+![build-badge](https://github.com/haad/proxychains/actions/workflows/buildci.yml/badge.svg)
 
 
 ProxyChains is a UNIX program, that hooks network-related libc functions
@@ -13,7 +11,7 @@ WARNING: this program works only on dynamically linked programs.
 also both proxychains and the program to call must use
 the same dynamic linker (i.e. same libc)
 
-== Known limitations of the current version
+## Known limitations of the current version
 
 when a process forks, does a DNS lookup in the child, and then uses
 the ip in the parent, the corresponding ip mapping will not be found,
@@ -32,9 +30,9 @@ I am reluctant on doing this change, because the described behavior
 seems pretty idiotic (doing a fork only for a DNS lookup), and irssi
 is currently the only known affected program.
 
-== Installation
+## Installation
 
-=== Using release version
+### Using release version
 
 *Proxychains-4.3.0* are available with pkgsrc to everyone using it on _Linux_,
 _NetBSD_, _FreeBSD_, _OpenBSD_, _DragonFlyBSD_ or _Mac OS X_. You just need to install
@@ -45,26 +43,26 @@ in a wip/proxychains directory.
 You can find out more about pkgsrc on link:http://www.pkgsrc.org[pkgsrc] and about pkgsrc-wip on
 link:https://pkgsrc.org/wip[Pkgsrc-wip homepage]
 
-=== Installing on Mac OS X with homebrew
+### Installing on Mac OS X with homebrew
 
 You can install current proxychains on Mac OS X with an homebrew. You have to
 download unofficial link:https://gist.github.com/3792521[homebrew formula] from
 to your BREW_HOME by default /usr/local/Library/Formula/ and run
 
-----
+```
 $ brew install proxychains
-----
+```
 
-=== Running Current Source code version
+### Running Current Source code version
 
-----
+```
 # needs a working C compiler, preferably gcc
 ./configure
 make
 sudo make install
-----
+```
 
-== Changelog
+## Changelog
 
 *Version (4.x)* removes the dnsresolver script which required a dynamically
 linked "dig" binary to be present with remote DNS lookup.
@@ -82,24 +80,28 @@ it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
  ** socks - "user/pass",
  ** http - "basic"
 
-== When to use it
+## When to use it
 
 * When the only way to get "outside" from your LAN is through proxy server.
 * To get out from behind restrictive firewall which filters outgoing ports.
 * To use two (or more) proxies in chain:
-----
+
+```
    like: your_host <--> proxy1 <--> proxy2 <--> target_host
-----
+```
+
 * To "proxify" some program with no proxy support built-in (like telnet)
 * Access intranet from outside via proxy.
 * To use DNS behind proxy.
 
-=== Some cool features
+### Some cool features
 
 * This program can mix different proxy types in the same chain
-----
+
+```
   like: your_host <-->socks5 <--> http <--> socks4 <--> target_host
-----
+```
+
 * Different chaining options supported
   random order from the list ( user defined length of chain ).
   exact order  (as they appear in the list )
@@ -107,13 +109,15 @@ it supports SOCKS4, SOCKS5 and HTTP CONNECT proxy servers.
 * You can use it with any TCP client application, even network scanners
   yes, yes - you can make portscan via proxy (or chained proxies)
   for example with Nmap scanner by fyodor (www.insecure.org/nmap).
-----
+
+```
   proxychains nmap -sT -PO -p 80 -iR  (find some webservers through proxy)
-----
+```
+
 * You can use it with servers, like squid, sendmail, or whatever.
 * DNS resolving through proxy.
 
-== Configuration
+## Configuration
 
 proxychains looks for configuration in the following order:
 
@@ -127,49 +131,49 @@ proxychains looks for configuration in the following order:
 
 see more in */etc/proxychains.conf*
 
-=== Usage Example
+### Usage Example
 
-----
-$ proxychains telnet targethost.com
-----
+```
+$ proxychains4 telnet targethost.com
+```
 
 in this example it will run telnet through proxy(or chained proxies)
 specified by *proxychains.conf*
 
-=== Usage Example
+### Usage Example
 
-----
-$ proxychains -f /etc/proxychains-other.conf targethost2.com
-----
+```
+$ proxychains4 -f /etc/proxychains-other.conf targethost2.com
+```
 
 in this example it will use different configuration file then *proxychains.conf*
 to connect to targethost2.com host.
 
-=== Usage Example
+### Usage Example
 
-----
+```
 $ proxyresolv targethost.com
-----
+```
 
 in this example it will resolve targethost.com through proxy(or chained proxies)
 specified by *proxychains.conf*
 
-=== Usage Example:
+### Usage Example:
 
-----
+```
 $ ssh -fN -D 4321 some.example.com
 $ PROXYCHAINS_SOCKS5_HOST=127.0.0.1 PROXYCHAINS_SOCKS5_PORT=4321 proxychains zsh
-----
+```
 
 in this example, it will run a shell with all traffic proxied through
 OpenSSH's "dynamic proxy" (SOCKS5 proxy) on localhost port 4321.
 
-=== Usage Example:
+### Usage Example:
 
-----
+```
 $ export PROXY_DNS_SERVER=8.8.8.8
-$ proxychains telnet targethost.com
-----
+$ proxychains4 telnet targethost.com
+```
 
 in this example, it will telnet to targethost.com using the 8.8.8.8
 nameserver supplied by the user through the PROXY_DNS_SERVER
