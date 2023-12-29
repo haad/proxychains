@@ -44,12 +44,13 @@ CFLAGS_MAIN=-DLIB_DIR=\"$(libdir)\" -DINSTALL_PREFIX=\"$(prefix)\" -DDLL_NAME=\"
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-    LDSO_SUFFIX = so
+	LDSO_PATHNAME = libproxychains.$(LDSO_SUFFIX)
+    LDSO_SUFFIX = so.4
 endif
 ifeq ($(UNAME_S),Darwin)
+	LDSO_PATHNAME = libproxychains4.$(LDSO_SUFFIX)
     LDSO_SUFFIX = dylib
 endif
-LDSO_PATHNAME = libproxychains4.$(LDSO_SUFFIX)
 
 
 all: $(ALL_LIBS) $(ALL_TOOLS)

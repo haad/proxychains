@@ -49,6 +49,6 @@ char *get_config_path(char* default_path, char* pbuf, size_t bufsize) {
 		return path;
 
 err:
-	perror("couldnt find configuration file");
+	perror("couldn't find configuration file");
 	exit(1);
 }
