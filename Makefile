@@ -60,7 +60,7 @@ install: install-exec install-config install-zsh-completion
 
 install-exec:
 	install -d $(DESTDIR)/$(bindir) $(DESTDIR)/$(libdir) $(DESTDIR)/$(confdir) $(DESTDIR)/$(includedir)
-	install $(INSTALL_FLAGS) 755 $(ALL_TOOLS) $(DESTDIR)/$(bindir)/
+	install $(INSTALL_FLAGS) 755 $(ALL_TOOLS) src/proxychains src/proxyresolv $(DESTDIR)/$(bindir)/
 	install $(INSTALL_FLAGS) 644 $(ALL_LIBS) $(DESTDIR)/$(libdir)/
 
 install-config:
