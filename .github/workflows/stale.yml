@@ -26,4 +26,6 @@ jobs:
         stale-issue-message: 'Stale issue message'
         stale-pr-message: 'Stale pull request message'
         stale-issue-label: 'no-issue-activity'
+        exempt-issue-labels: 'docu,roadmap'
         stale-pr-label: 'no-pr-activity'
+        exempt-pr-labels: 'feature'
